@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@@title@@ · @@site_title@@</title>
+  <meta name="description" content="@@summary@@">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body class="page-article" data-has-sync="@@has_sync@@" data-has-en="@@has_en@@" data-duration="@@duration@@">
+  <a class="skip-link" href="#text">Skip to text</a>
+
+  <header class="article-head">
+    <div class="wrap">
+      <a class="back" href="../../">← All articles</a>
+      <h1 lang="cy">@@title@@</h1>
+      @@!title_en_html@@
+      <div class="badges">
+        @@!badges@@
+      </div>
+      @@!credits@@
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <audio id="audio" class="native-audio" controls preload="metadata" src="@@audio@@">
+      Your browser does not support audio playback.
+    </audio>
+
+    <div class="toolbar">
+      <button type="button" id="en-toggle" class="toggle" aria-pressed="false" hidden>
+        <span class="toggle-box" aria-hidden="true"></span> English <kbd>E</kbd>
+      </button>
+      @@!hint@@
+    </div>
+
+    <article id="text" class="text" tabindex="-1">
+@@!body@@
+    </article>
+
+    <nav class="article-nav" aria-label="More articles">
+      @@!prev_link@@
+      @@!next_link@@
+    </nav>
+  </main>
+
+  <div class="player" id="player" role="group" aria-label="Audio player" hidden>
+    <div class="player-row">
+      <button type="button" id="p-prev" class="icon-btn" aria-label="Previous sentence" title="Previous sentence (←)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+      <button type="button" id="p-play" class="icon-btn play-btn" aria-label="Play" title="Play / pause (Space)">
+        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>
+        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+      </button>
+      <button type="button" id="p-next" class="icon-btn" aria-label="Next sentence" title="Next sentence (→)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5l11 7L4 19z"/></svg>
+      </button>
+      <span class="time" id="p-cur">0:00</span>
+      <input type="range" id="p-seek" min="0" max="0" step="0.1" value="0" aria-label="Seek">
+      <span class="time" id="p-dur">0:00</span>
+      <label class="speed">
+        <span class="sr-only">Playback speed</span>
+        <select id="p-speed" title="Speed ([ and ])">
+          <option value="0.6">0.6×</option>
+          <option value="0.75">0.75×</option>
+          <option value="1" selected>1×</option>
+          <option value="1.25">1.25×</option>
+        </select>
+      </label>
+    </div>
+    <button type="button" id="p-follow" class="follow-btn" hidden>Follow audio</button>
+  </div>
+
+@@!timings_script@@
+  <script type="module" src="../../js/article.js"></script>
+</body>
+</html>

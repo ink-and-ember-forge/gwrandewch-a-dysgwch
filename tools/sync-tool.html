@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sync tool · Gwrandewch a Dysgwch</title>
+  <meta name="color-scheme" content="light dark">
+  <style>
+    :root { --bg:#fbf8f1; --surface:#fff; --ink:#1d2a24; --muted:#56635b; --line:#ddd6c6; --accent:#1f6b45; --accent-ink:#fff; --hl:#fff0b8; --edge:#b07400; --bad:#b3262d; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#111915; --surface:#19231e; --ink:#eaf0ea; --muted:#a6b5ab; --line:#2b3a32; --accent:#5fc58d; --accent-ink:#0a1710; --hl:#3b3512; --edge:#f0c040; --bad:#ff8a8f; } }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:1rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    .wrap { max-width: 52rem; margin: 0 auto; padding: 1rem 16px 8rem; }
+    h1 { font: 700 1.6rem/1.2 Georgia,serif; margin: .5rem 0; }
+    p.lead { color: var(--muted); margin-top: 0; }
+    fieldset { border:1px solid var(--line); border-radius:12px; background:var(--surface); margin:1rem 0; padding:.75rem 1rem 1rem; }
+    legend { font-weight:600; padding:0 .4rem; }
+    textarea { width:100%; min-height:7rem; border:1px solid var(--line); border-radius:8px; padding:.6rem; background:var(--bg); color:inherit; font:inherit; }
+    button, .btn { font:inherit; padding:.45rem .9rem; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:inherit; cursor:pointer; min-height:2.5rem; }
+    button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+    button:disabled { opacity:.4; cursor:default; }
+    :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+    .row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.5rem 0; }
+    ol#segs { list-style:none; padding:0; margin:1rem 0; counter-reset:s -1; }
+    ol#segs li { counter-increment:s; display:grid; grid-template-columns:3.5rem 5rem 1fr; gap:.5rem; align-items:baseline; padding:.4rem .5rem; border-radius:8px; border-left:4px solid transparent; cursor:pointer; font:1.05rem/1.5 Georgia,serif; }
+    ol#segs li::before { content:counter(s); color:var(--muted); font:.8rem system-ui; text-align:right; }
+    ol#segs li .t { font:.85rem ui-monospace,monospace; color:var(--muted); }
+    ol#segs li.marked .t { color:var(--ink); }
+    ol#segs li.next { border-left-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent); }
+    ol#segs li.playing { background:var(--hl); border-left-color:var(--edge); }
+    ol#segs li.sel { outline:2px dashed var(--muted); }
+    .head { font:600 1.1rem Georgia,serif; margin:.8rem 0 .2rem; color:var(--muted); }
+    #msg { min-height:1.5rem; color:var(--muted); }
+    #msg.bad { color:var(--bad); }
+    .bar { position:fixed; inset:auto 0 0 0; background:var(--surface); border-top:1px solid var(--line); padding:.6rem 16px; }
+    .bar .in { max-width:52rem; margin:0 auto; display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
+    .bar audio { flex:1; min-width:14rem; }
+    kbd { font:.75em system-ui; padding:.1em .4em; border:1px solid var(--line); border-radius:4px; background:var(--surface); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sync tool</h1>
+  <p class="lead">Tap along to the audio to create <code>timings.json</code>. Everything stays in your browser; nothing is uploaded.</p>
+
+  <fieldset>
+    <legend>1. Load files</legend>
+    <div class="row">
+      <label>Audio <input type="file" id="audio-file" accept="audio/*"></label>
+      <label>article.md <input type="file" id="md-file" accept=".md,text/markdown,text/plain"></label>
+    </div>
+    <label for="md-text">…or paste the article text:</label>
+    <textarea id="md-text" spellcheck="false" placeholder="---&#10;title: …&#10;---&#10;&#10;One sentence per line."></textarea>
+    <div class="row"><button type="button" id="load" class="primary">Use this text</button>
+      <label>Existing timings.json (optional) <input type="file" id="json-file" accept=".json,application/json"></label></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2. Tap along</legend>
+    <p>Play the audio, then press <kbd>Space</kbd> (or the big button) as each highlighted sentence <em>begins</em>.
+      <kbd>Backspace</kbd> undoes the last mark. Click a sentence to select it, then nudge with <kbd>,</kbd> / <kbd>.</kbd> (−/+ 0.1&nbsp;s).
+      <kbd>P</kbd> plays/pauses.</p>
+    <div class="row">
+      <button type="button" id="tap" class="primary" disabled>Mark sentence start</button>
+      <button type="button" id="undo" disabled>Undo</button>
+      <button type="button" id="minus" disabled>−0.1 s</button>
+      <button type="button" id="plus" disabled>+0.1 s</button>
+      <button type="button" id="goto" disabled>Play from selected</button>
+      <button type="button" id="reset" disabled>Clear all</button>
+    </div>
+    <p id="msg" role="status"></p>
+    <ol id="segs" aria-label="Sentences"></ol>
+  </fieldset>
+
+  <fieldset>
+    <legend>3. Preview and download</legend>
+    <div class="row">
+      <label><input type="checkbox" id="follow" checked> Highlight while playing</label>
+      <button type="button" id="download" class="primary" disabled>Download timings.json</button>
+    </div>
+  </fieldset>
+</div>
+
+<div class="bar"><div class="in">
+  <audio id="audio" controls preload="metadata"></audio>
+  <label>Speed <select id="rate"><option>0.6</option><option>0.75</option><option selected>1</option><option>1.25</option></select></label>
+</div></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const audio = $('audio');
+  let segments = [];   // sentence strings
+  let times = [];      // start time (s) per segment, or null
+  let selected = -1;
+
+  const clean = (s) => s.replace(/\\\{\{/g, '{{').replace(/\{\{([^|}]*)[^}]*\}\}/g, '$1');
+  const say = (m, bad) => { $('msg').textContent = m; $('msg').className = bad ? 'bad' : ''; };
+  const nextIndex = () => times.findIndex((t) => t === null);
+
+  function parse(text) {
+    text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+    const fm = text.match(/^---\n[\s\S]*?\n---[ \t]*(?:\n|$)/);
+    const body = fm ? text.slice(fm[0].length) : text;
+    const out = [];
+    const heads = {};
+    for (const raw of body.split('\n')) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('## ')) { heads[out.length] = line.slice(3); continue; }
+      out.push(line);
+    }
+    return { out, heads };
+  }
+
+  let heads = {};
+  function load(text) {
+    const p = parse(text);
+    segments = p.out; heads = p.heads;
+    times = segments.map(() => null);
+    selected = -1;
+    draw();
+    say(`${segments.length} sentences loaded.`);
+  }
+
+  function draw() {
+    const ol = $('segs');
+    ol.replaceChildren();
+    const nxt = nextIndex();
+    segments.forEach((s, i) => {
+      if (heads[i]) { const h = document.createElement('div'); h.className = 'head'; h.textContent = heads[i]; ol.append(h); }
+      const li = document.createElement('li');
+      li.dataset.i = i;
+      li.className = (times[i] !== null ? 'marked ' : '') + (i === nxt ? 'next ' : '') + (i === selected ? 'sel' : '');
+      const t = document.createElement('span'); t.className = 't'; t.textContent = times[i] === null ? '—' : times[i].toFixed(2) + 's';
+      const x = document.createElement('span'); x.textContent = clean(s);
+      li.append(t, x);
+      ol.append(li);
+    });
+    const any = segments.length > 0;
+    const done = any && nextIndex() === -1;
+    $('tap').disabled = !any || done;
+    $('undo').disabled = !times.some((t) => t !== null);
+    $('reset').disabled = !any;
+    $('goto').disabled = $('minus').disabled = $('plus').disabled = selected < 0 || times[selected] === null;
+    $('download').disabled = !done;
+    if (done) say('All sentences marked. Preview by playing, then download.');
+  }
+
+  function mark() {
+    const i = nextIndex();
+    if (i < 0) return;
+    const t = Math.round(audio.currentTime * 100) / 100;
+    if (i > 0 && t <= times[i - 1]) { say(`Sentence ${i + 1} must start after sentence ${i} (${times[i - 1].toFixed(2)}s).`, true); return; }
+    times[i] = t;
+    selected = -1;
+    draw();
+    document.querySelector('li.next')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  function undo() {
+    for (let i = times.length - 1; i >= 0; i--) if (times[i] !== null) { times[i] = null; break; }
+    draw();
+  }
+
+  function nudge(d) {
+    if (selected < 0 || times[selected] === null) return;
+    const lo = selected > 0 && times[selected - 1] !== null ? times[selected - 1] : -Infinity;
+    const hi = times[selected + 1] ?? Infinity;
+    const v = Math.round((times[selected] + d) * 100) / 100;
+    if (v < 0 || v <= lo || v >= hi) { say('Cannot move past a neighbouring sentence.', true); return; }
+    times[selected] = v;
+    draw();
+  }
+
+  // preview highlight
+  function tick() {
+    if (!$('follow').checked) return;
+    const done = times.every((t) => t !== null);
+    document.querySelectorAll('li.playing').forEach((l) => l.classList.remove('playing'));
+    if (!done) return;
+    let idx = 0;
+    for (let i = 0; i < times.length; i++) if (times[i] <= audio.currentTime + 0.05) idx = i;
+    document.querySelector(`li[data-i="${idx}"]`)?.classList.add('playing');
+  }
+  (function loop() { tick(); requestAnimationFrame(loop); })();
+
+  // events
+  $('audio-file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (f) { audio.src = URL.createObjectURL(f); say(`Loaded audio: ${f.name}`); }
+  });
+  $('md-file').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (f) { const t = await f.text(); $('md-text').value = t; load(t); }
+  });
+  $('load').addEventListener('click', () => load($('md-text').value));
+  $('json-file').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const arr = JSON.parse(await f.text());
+      if (!Array.isArray(arr) || arr.length !== segments.length) throw new Error(`expected ${segments.length} entries, got ${Array.isArray(arr) ? arr.length : 'non-array'}`);
+      times = arr.map(Number);
+      draw();
+      say('Existing timings loaded.');
+    } catch (err) { say(`Could not load timings: ${err.message}. Load the article text first.`, true); }
+  });
+  $('tap').addEventListener('click', mark);
+  $('undo').addEventListener('click', undo);
+  $('minus').addEventListener('click', () => nudge(-0.1));
+  $('plus').addEventListener('click', () => nudge(0.1));
+  $('goto').addEventListener('click', () => { audio.currentTime = times[selected]; audio.play(); });
+  $('reset').addEventListener('click', () => { if (confirm('Clear all timings?')) { times = segments.map(() => null); selected = -1; draw(); } });
+  $('rate').addEventListener('change', (e) => { audio.playbackRate = Number(e.target.value); });
+  $('segs').addEventListener('click', (e) => {
+    const li = e.target.closest('li');
+    if (!li) return;
+    selected = Number(li.dataset.i);
+    if (times[selected] !== null) audio.currentTime = times[selected];
+    draw();
+  });
+  $('download').addEventListener('click', () => {
+    for (let i = 1; i < times.length; i++) if (times[i] <= times[i - 1]) { say(`Sentence ${i + 1} does not start after sentence ${i}.`, true); return; }
+    const blob = new Blob([JSON.stringify(times) + '\n'], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'timings.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest('textarea, input[type="text"], select, input[type="file"]')) return;
+    if (e.key === ' ' && !e.target.closest('button, audio')) { e.preventDefault(); mark(); }
+    else if (e.key === 'Backspace') { e.preventDefault(); undo(); }
+    else if (e.key === ',') nudge(-0.1);
+    else if (e.key === '.') nudge(0.1);
+    else if (e.key === 'p' || e.key === 'P') { audio.paused ? audio.play() : audio.pause(); }
+  });
+})();
+</script>
+</body>
+</html>

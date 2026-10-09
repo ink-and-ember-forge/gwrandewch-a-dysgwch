@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@@site_title@@ · Welsh reading and listening</title>
+  <meta name="description" content="@@tagline@@">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="page-home">
+  <a class="skip-link" href="#main">Skip to articles</a>
+
+  <header class="hero">
+    <div class="wrap">
+      <p class="kicker" lang="cy">Darllen a gwrando <span lang="en">· Read and listen</span></p>
+      <h1 lang="cy">@@site_title@@</h1>
+      <p class="lede">@@tagline@@</p>
+      <ol class="steps" aria-label="How it works">
+        <li><span class="step-n" aria-hidden="true">1</span> Press play and follow the highlighted sentence</li>
+        <li><span class="step-n" aria-hidden="true">2</span> Tap a dotted word to see what it means</li>
+        <li><span class="step-n" aria-hidden="true">3</span> Switch on English whenever you need it</li>
+      </ol>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="controls" aria-label="Find an article">
+      <div class="search">
+        <label for="q" class="sr-only">Search articles</label>
+        <input id="q" type="search" placeholder="Search titles, summaries and text…" autocomplete="off" spellcheck="false" hidden>
+      </div>
+      <div class="filter-group" id="level-filters" role="group" aria-label="Filter by level" hidden></div>
+      <div class="filter-group" id="topic-filters" role="group" aria-label="Filter by topic" hidden></div>
+      <p class="status"><span id="count" aria-live="polite"></span> <button type="button" id="clear" class="link-btn" hidden>Clear filters</button></p>
+    </section>
+
+    <ul id="cards" class="cards" aria-label="Articles"></ul>
+    <p id="empty" class="empty" hidden>No articles match those filters. Try removing a filter or searching for something shorter.</p>
+    <p id="error" class="empty" hidden>The article list could not be loaded. Please reload the page.</p>
+    <noscript>
+      <div class="noscript">
+        <p>Search and filters need JavaScript, but every article works without it:</p>
+        @@!noscript_list@@
+      </div>
+    </noscript>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Free, no accounts, no trackers.
+        <a href="tools/sync-tool.html">Sync tool for authors</a> ·
+        <a href="https://github.com/ink-and-ember-forge/gwrandewch-a-dysgwch">Source on GitHub</a></p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/index.js"></script>
+</body>
+</html>
