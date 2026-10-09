@@ -11,7 +11,7 @@ dialect: south
 source: NewsInLevels
 ---
 
-Mae gwledydd yn Ewrop yn adeiladu {{tyrbinau gwynt|wind turbines|tyrbin, tyrbinau, eg = turbine|gwynt, eg = wind}} mawr ar y môr i gael {{egni glân (eg)|clean energy|egni, eg = energy|glân, adj = clean}} o'r gwynt.
+Mae gwledydd yn Ewrop yn adeiladu {{tyrbinau gwynt|wind turbines|tyrbin, tyrbinau, eg = turbine|gwynt, eg = wind}} mawr ar y môr i gael {{egni glân|clean energy|egni, eg = energy|glân, adj = clean}} o'r gwynt.
 Ond mae miliynau o adar yn hedfan dros y môr bob blwyddyn.
 Mae pobl eisiau eu cadw nhw'n {{ddiogel|safe|diogel, adj = safe|note: soft mutation of diogel}}.
 
