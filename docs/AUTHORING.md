@@ -43,7 +43,7 @@ Bore dydd Sadwrn, es i i'r {{farchnad|market|marchnad, marchnadoedd, eb = market
 Roedd hi'n brysur iawn.
 ```
 
-**Frontmatter.** Required: `title`, `level`, `date` (YYYY-MM-DD), `summary`, `audio`. `level` is one of `mynediad`, `sylfaen`, `canolradd`, `uwch`, `hyfedredd`. Optional: `title_en`, `topics` (lowercase tags), `narrator`, `dialect` (`north`, `south`, `neutral`), `source`, `licence`, and `draft: true` to keep it off the site.
+**Frontmatter.** Required: `title`, `level`, `date` (YYYY-MM-DD), `summary`, `audio`. `level` is one of `mynediad`, `sylfaen`, `canolradd`, `uwch`, `hyfedredd`. Optional: `title_en`, `topics` (lowercase tags), `series`, `part` and `part_label` (see [Series](#series-chapters-of-a-book-or-course)), `narrator`, `dialect` (`north`, `south`, `neutral`), `source`, `licence`, and `draft: true` to keep it off the site.
 
 **One line = one sentence.** Never hard-wrap. A blank line starts a new paragraph. `## Heading` lines are headings and are not timed.
 
@@ -80,6 +80,39 @@ Type the gender **once per word**, on the Welsh side; the English `(m)`/`(f)` is
 The Welsh dictionary abbreviations `ans`, `be`/`bf`, `ardd`, `adf`, `cys`, `rhag` also work. Colour is never the only signal: the letters are always shown. The checker flags `(m)`/`(f)` typed by hand, and the build warns if one headword is tagged with different genders in different articles.
 
 Phrases work (`{{ar y gair|nearby}}`). Escape a literal `{{` as `\{{`. No nesting, no line breaks inside.
+
+## Series: chapters of a book or course
+
+Several articles can be linked as one series, for example the chapters of a learners' book. Each chapter is still an ordinary article folder; two fields in its frontmatter join it to the series:
+
+```yaml
+series: cymraeg-byw      # the series name: lowercase letters, digits, hyphens (same for every chapter)
+part: 3                  # this chapter's position: 1, 2, 3 … (each chapter needs its own number)
+part_label: Uned 3       # optional: what readers see instead of "Part 3" (Uned 3, Chapter 3, Pennod 3)
+```
+
+That is all a chapter needs. The site then builds a **series page** at `series/<name>/` listing the chapters in order, adds the series name and chapter label above each chapter's title, and replaces the older/newer links with **previous / next chapter** links. The home page shows the series as a single card (its chapters listed inside), with a **Series** filter, and searching a series name, author or any chapter's text finds it. Readers can tick chapters off as they read them (stored only in their own browser); the series page offers "Continue with …" and the home card shows progress.
+
+**The series page (optional).** To give the series a proper title, a description and a book credit, add one small file, `content/series/<name>.md`, with the same `<name>` as the chapters use:
+
+```markdown
+---
+title: Cymraeg Byw
+title_en: Living Welsh
+summary: A beginner's course in everyday Welsh, one unit at a time.
+author: A. Learner
+publisher: Example Press
+edition: 2nd edition
+licence: CC BY-NC 4.0
+url: https://example.org/cymraeg-byw
+---
+```
+
+Only `title` is required; the other fields are shown when given. Without the file the series still works and is titled from its name (`cymraeg-byw` becomes "Cymraeg byw").
+
+**What gets checked.** The build **fails** if two chapters share a part number, a chapter has a `series` but no `part` (or the reverse), or a series file has no `title` or a bad link. It **warns** when a series has a gap (a missing or draft part; readers will see the gap), when a series has one chapter and no series file (usually a typo in `series:`), and when a series file has no chapters. `node scripts/lint.mjs` runs the same checks.
+
+**In the editor.** *Details* has the series name, part number and chapter label, and a *Series page* section for the book details with a download for the series file. Series you have used before are remembered in the browser, so a later chapter fills the details in for you. Keep the series name identical across chapters; the editor's name suggestions help avoid typos.
 
 ## 3. English (optional)
 

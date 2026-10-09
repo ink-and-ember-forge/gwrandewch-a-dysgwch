@@ -13,6 +13,8 @@
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  /** "Uned 3" if the author gave a part_label, else "Part 3". */
+  const chapterLabel = (part, label) => (label && String(label).trim()) || `Part ${part}`;
 
   // Welsh tag -> label, help text, colour class. Gender tags also produce an
   // English (m)/(f) tag on the English side.
@@ -140,5 +142,5 @@
     }
   }
 
-  return { esc, cap, TAGS, renderInline, plainInline, renderBody, levelBadge, entriesOf, fillTooltip };
+  return { esc, cap, chapterLabel, TAGS, renderInline, plainInline, renderBody, levelBadge, entriesOf, fillTooltip };
 }));

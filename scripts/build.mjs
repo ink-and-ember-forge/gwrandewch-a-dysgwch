@@ -11,16 +11,18 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// GAD_ROOT lets the tests build a throwaway site; normally this is the repository root.
+const ROOT = process.env.GAD_ROOT ? resolve(process.env.GAD_ROOT) : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Parsing and metadata rules are shared with the linter so the two never disagree.
 const require = createRequire(import.meta.url);
 const {
-  LEVELS, MAX_SEGMENT_CHARS, parseFrontmatter, parseBlocks, isHeading, validateMeta,
+  LEVELS, MAX_SEGMENT_CHARS, SLUG_RE, parseFrontmatter, parseBlocks, isHeading, validateMeta, validateSeriesMeta, checkSeriesSet,
 } = require('../tools/lint-core.js');
 const {
-  esc, cap, renderInline, plainInline, renderBody, levelBadge,
+  esc, cap, chapterLabel, renderInline, plainInline, renderBody, levelBadge,
 } = require('../tools/render-core.js');
 const CONTENT = join(ROOT, 'content', 'articles');
+const CONTENT_SERIES = join(ROOT, 'content', 'series');
 const SITE = join(ROOT, 'site');
 const DIST = join(ROOT, 'dist');
 
@@ -109,7 +111,7 @@ function loadArticle(slug) {
   const fm = parseFrontmatter(readText(mdPath));
   if (fm.error) { err(`${where}/article.md`, fm.error); return null; }
   const meta = fm.data;
-  if (meta.draft === 'true') return { draft: true };
+  if (meta.draft === 'true') return { draft: true, slug, series: meta.series || '', part: Number(meta.part) || 0 };
 
   const before = errors.length;
   const at = `${where}/article.md`;
@@ -191,6 +193,9 @@ function loadArticle(slug) {
       title_en: meta.title_en || '',
       level: meta.level,
       topics,
+      series: meta.series || '',
+      part: meta.series ? Number(meta.part) : 0,
+      part_label: meta.series ? (meta.part_label || '') : '',
       date: meta.date,
       summary: meta.summary,
       narrator: meta.narrator || '',
@@ -210,9 +215,65 @@ function loadArticle(slug) {
   };
 }
 
+// ---------------------------------------------------------------- series
+
+const titleize = (slug) => cap(slug.replace(/-/g, ' '));
+const fmtTime = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+const SERIES_TEXT_KEYS = ['title', 'title_en', 'summary', 'author', 'publisher', 'edition', 'licence', 'url'];
+
+/** content/series/<slug>.md: the optional page for a series. */
+function loadSeriesFiles() {
+  const found = new Map();
+  if (!existsSync(CONTENT_SERIES)) return found;
+  for (const name of readdirSync(CONTENT_SERIES).sort()) {
+    if (name.startsWith('.') || !/\.md$/i.test(name)) continue;
+    const slug = name.replace(/\.md$/i, '');
+    const where = `content/series/${name}`;
+    const before = errors.length;
+    if (!SLUG_RE.test(slug)) { err(where, 'file name must be a lowercase ASCII slug (a-z, 0-9, hyphens), e.g. cymraeg-byw.md'); continue; }
+    const fm = parseFrontmatter(readText(join(CONTENT_SERIES, name)));
+    if (fm.error) { err(where, fm.error); continue; }
+    for (const p of fm.problems) err(where, `line ${p.line}: ${p.message}`);
+    for (const v of validateSeriesMeta(fm.data)) (v.severity === 'error' ? err : warn)(where, v.message);
+    if (fm.body.trim()) warn(where, 'text below the frontmatter is not used; put the description in "summary"');
+    if (errors.length > before) continue;
+    const meta = {};
+    for (const k of SERIES_TEXT_KEYS) meta[k] = fm.data[k] || '';
+    found.set(slug, { slug, meta });
+  }
+  return found;
+}
+
+/** Group published chapters by series and attach series info (checks live in lint-core checkSeriesSet). */
+function buildSeries(articles, drafts, files) {
+  const chapters = [...articles.map((a) => ({ slug: a.slug, series: a.meta.series, part: a.meta.part })), ...drafts];
+  for (const i of checkSeriesSet(chapters, files.keys())) (i.severity === 'error' ? err : warn)(i.where, i.message);
+
+  const groups = new Map();
+  for (const a of articles) {
+    if (!a.meta.series) continue;
+    if (!groups.has(a.meta.series)) groups.set(a.meta.series, { slug: a.meta.series, chapters: [] });
+    groups.get(a.meta.series).chapters.push(a);
+  }
+  for (const g of groups.values()) {
+    g.chapters.sort((x, y) => x.meta.part - y.meta.part || x.slug.localeCompare(y.slug));
+    const file = files.get(g.slug);
+    g.hasFile = !!file;
+    g.meta = file ? file.meta : Object.fromEntries(SERIES_TEXT_KEYS.map((k) => [k, k === 'title' ? titleize(g.slug) : '']));
+    g.levels = LEVELS.map(([id]) => id).filter((id) => g.chapters.some((c) => c.meta.level === id));
+    g.topics = [...new Set(g.chapters.flatMap((c) => c.meta.topics))].sort();
+    g.date = g.chapters.map((c) => c.meta.date).sort().pop();
+    const durations = g.chapters.map((c) => c.duration).filter((d) => d != null);
+    g.duration = durations.length ? Math.round(durations.reduce((x, y) => x + y, 0) * 100) / 100 : null;
+  }
+  return groups;
+}
+
+const chLabel = (a) => chapterLabel(a.meta.part, a.meta.part_label);
+
 // ------------------------------------------------------------- rendering
 
-function renderArticle(a, tpl, prev, next) {
+function renderArticle(a, tpl, nav) {
   const m = a.meta;
   const badges = [levelBadge(m.level)];
   if (m.dialect) badges.push(`<span class="badge badge-dialect">${esc(cap(m.dialect))} dialect</span>`);
@@ -227,8 +288,11 @@ function renderArticle(a, tpl, prev, next) {
     ? `<a class="${cls}" href="../${x.slug}/" rel="${cls === 'nav-prev' ? 'prev' : 'next'}"><span class="nav-label">${label}</span><span class="nav-title" lang="cy">${esc(x.meta.title)}</span></a>`
     : '<span></span>');
 
+  const g = nav.series;
+  const seriesHref = g ? `../../series/${g.slug}/` : '';
   return fill(tpl, {
     site_title: SITE_TITLE,
+    slug: a.slug,
     title: m.title,
     summary: m.summary,
     audio: a.audioName,
@@ -239,11 +303,51 @@ function renderArticle(a, tpl, prev, next) {
     badges: badges.join('\n'),
     credits: credits.length ? `<p class="credits">${credits.join(' · ')}</p>` : '',
     hint: a.glosses.length ? '<p class="hint">Tap or hover a dotted word for its meaning.</p>' : '',
+    series_banner: g
+      ? `<p class="series-banner"><a href="${seriesHref}">${esc(g.meta.title)}</a><span aria-hidden="true"> · </span><strong>${esc(chLabel(a))}</strong></p>`
+      : '',
+    series_tools: g
+      ? `<a class="series-all" href="${seriesHref}">All ${g.chapters.length} chapter${g.chapters.length === 1 ? '' : 's'}</a>`
+        + '<button type="button" class="toggle" id="mark-read" aria-pressed="false" hidden><span class="toggle-box" aria-hidden="true"></span> Mark as read</button>'
+      : '',
     body: renderBody(a.blocks, a.enLines),
     timings_script: a.timings ? `<script type="application/json" id="timings">${JSON.stringify(a.timings)}</script>` : '',
-    prev_link: link(prev, 'nav-prev', '← Older'),
-    next_link: link(next, 'nav-next', 'Newer →'),
+    prev_link: link(nav.prev, 'nav-prev', g && nav.prev ? `← ${esc(chLabel(nav.prev))}` : '← Older'),
+    next_link: link(nav.next, 'nav-next', g && nav.next ? `${esc(chLabel(nav.next))} →` : 'Newer →'),
   }, 'article.template.html');
+}
+
+function bookCredit(meta) {
+  const bits = [];
+  if (meta.author) bits.push(`By ${esc(meta.author)}`);
+  const pub = [meta.publisher, meta.edition].filter(Boolean).map(esc).join(', ');
+  if (pub) bits.push(`Published by ${pub}`);
+  if (meta.licence) bits.push(`Licence: ${esc(meta.licence)}`);
+  if (meta.url) bits.push(`<a href="${esc(meta.url)}" rel="noopener">About the book</a>`);
+  return bits.length ? `<p class="credits">${bits.join(' · ')}</p>` : '';
+}
+
+function renderSeries(g, tpl) {
+  const first = g.chapters[0];
+  const items = g.chapters.map((c) => `<li data-slug="${c.slug}">
+  <a class="ch-link" href="../../articles/${c.slug}/"><span class="ch-label">${esc(chLabel(c))}</span><span class="ch-title" lang="cy">${esc(c.meta.title)}</span>${c.meta.title_en ? `<span class="ch-en" lang="en">${esc(c.meta.title_en)}</span>` : ''}</a>
+  <span class="ch-meta">${esc(cap(c.meta.level))}${c.duration ? ` · ${fmtTime(c.duration)}` : ''}</span>
+  <span class="read-mark"></span>
+</li>`).join('\n');
+  const badges = g.levels.map(levelBadge).concat(g.topics.map((t) => `<span class="badge badge-topic">${esc(t)}</span>`));
+  return fill(tpl, {
+    site_title: SITE_TITLE,
+    title: g.meta.title,
+    summary: g.meta.summary || `${g.chapters.length} chapters`,
+    title_en_html: g.meta.title_en ? `<p class="subtitle" lang="en">${esc(g.meta.title_en)}</p>` : '',
+    summary_html: g.meta.summary ? `<p class="series-summary" lang="en">${esc(g.meta.summary)}</p>` : '',
+    badges: badges.join('\n'),
+    credit_html: bookCredit(g.meta),
+    count_text: `${g.chapters.length} chapter${g.chapters.length === 1 ? '' : 's'}${g.duration ? ` · ${fmtTime(g.duration)} of audio` : ''}`,
+    first_href: `../../articles/${first.slug}/`,
+    first_label: `Start with ${chLabel(first)}`,
+    chapters_html: items,
+  }, 'series.template.html');
 }
 
 // ------------------------------------------------------------------ main
@@ -253,12 +357,18 @@ function main() {
 
   const entries = readdirSync(CONTENT).filter((n) => !n.startsWith('.') && statSync(join(CONTENT, n)).isDirectory());
   const articles = [];
+  const draftChapters = []; // drafts that belong to a series (for the gap messages)
   let drafts = 0;
   for (const slug of entries.sort()) {
     const a = loadArticle(slug);
-    if (a?.draft) drafts++;
-    else if (a) articles.push(a);
+    if (a?.draft) {
+      drafts++;
+      if (a.series) draftChapters.push(a);
+    } else if (a) articles.push(a);
   }
+
+  const seriesFiles = loadSeriesFiles();
+  const groups = buildSeries(articles, draftChapters, seriesFiles);
 
   // Consistency: the same surface form glossed differently across articles
   const seen = new Map(); // folded surface -> Map(lowercased tip -> Set(slug))
@@ -298,7 +408,7 @@ function main() {
     }
   }
 
-  console.log(`Found ${articles.length} article(s)${drafts ? `, ${drafts} draft(s) skipped` : ''}.`);
+  console.log(`Found ${articles.length} article(s)${groups.size ? ` in ${articles.filter((a) => !a.meta.series).length} standalone and ${groups.size} series` : ''}${drafts ? `, ${drafts} draft(s) skipped` : ''}.`);
   for (const w of warnings) console.log(`WARN  ${w}`);
   if (errors.length) {
     for (const e of errors) console.error(`ERROR ${e}`);
@@ -307,6 +417,7 @@ function main() {
   }
 
   articles.sort((x, y) => y.meta.date.localeCompare(x.meta.date) || x.meta.title.localeCompare(y.meta.title, 'cy'));
+  const standalone = articles.filter((a) => !a.meta.series);
 
   rmSync(DIST, { recursive: true, force: true });
   mkdirSync(DIST, { recursive: true });
@@ -319,42 +430,90 @@ function main() {
   // the article page loads the shared render code as a classic script next to its other JS
   cpSync(join(ROOT, 'tools', 'render-core.js'), join(DIST, 'js', 'render-core.js'));
 
-  // article pages + audio
+  // article pages + audio. Standalone articles link to older/newer standalone ones;
+  // chapters link to the previous/next chapter of their series.
   const tpl = readFileSync(join(SITE, 'article.template.html'), 'utf8');
-  articles.forEach((a, i) => {
+  for (const a of articles) {
     const out = join(DIST, 'articles', a.slug);
     mkdirSync(out, { recursive: true });
-    // list is newest-first: the next index is older, the previous index is newer
-    const older = articles[i + 1] || null;
-    const newer = articles[i - 1] || null;
-    writeFileSync(join(out, 'index.html'), renderArticle(a, tpl, older, newer));
+    let nav;
+    if (a.meta.series) {
+      const g = groups.get(a.meta.series);
+      const i = g.chapters.indexOf(a);
+      nav = { series: g, prev: g.chapters[i - 1] || null, next: g.chapters[i + 1] || null };
+    } else {
+      const i = standalone.indexOf(a); // newest first: the next index is older
+      nav = { series: null, prev: standalone[i + 1] || null, next: standalone[i - 1] || null };
+    }
+    writeFileSync(join(out, 'index.html'), renderArticle(a, tpl, nav));
     cpSync(join(CONTENT, a.slug, a.audioName), join(out, a.audioName));
-  });
+  }
+
+  // series pages
+  if (groups.size) {
+    const stpl = readFileSync(join(SITE, 'series.template.html'), 'utf8');
+    for (const g of groups.values()) {
+      const out = join(DIST, 'series', g.slug);
+      mkdirSync(out, { recursive: true });
+      writeFileSync(join(out, 'index.html'), renderSeries(g, stpl));
+    }
+  }
 
   // search/filter index
-  const index = articles.map((a) => ({
-    slug: a.slug,
-    title: a.meta.title,
-    title_en: a.meta.title_en,
-    level: a.meta.level,
-    dialect: a.meta.dialect,
-    topics: a.meta.topics,
-    date: a.meta.date,
-    summary: a.meta.summary,
-    duration: a.duration,
-    has_sync: !!a.timings,
-    has_english: !!a.enLines,
-    search: fold([a.meta.title, a.meta.title_en, a.meta.summary, a.meta.topics.join(' '), a.bodyText, a.enText].join(' ')),
-  }));
+  const index = articles.map((a) => {
+    const g = a.meta.series ? groups.get(a.meta.series) : null;
+    const seriesText = g ? [g.meta.title, g.meta.title_en, g.meta.summary, g.meta.author, g.meta.publisher, chLabel(a)] : [];
+    return {
+      slug: a.slug,
+      title: a.meta.title,
+      title_en: a.meta.title_en,
+      level: a.meta.level,
+      dialect: a.meta.dialect,
+      topics: a.meta.topics,
+      series: a.meta.series,
+      part: a.meta.part,
+      label: g ? chLabel(a) : '',
+      date: a.meta.date,
+      summary: a.meta.summary,
+      duration: a.duration,
+      has_sync: !!a.timings,
+      has_english: !!a.enLines,
+      search: fold([a.meta.title, a.meta.title_en, a.meta.summary, a.meta.topics.join(' '), ...seriesText, a.bodyText, a.enText].join(' ')),
+    };
+  });
+  const seriesIndex = [...groups.values()].map((g) => ({
+    slug: g.slug,
+    title: g.meta.title,
+    title_en: g.meta.title_en,
+    summary: g.meta.summary,
+    author: g.meta.author,
+    publisher: g.meta.publisher,
+    edition: g.meta.edition,
+    licence: g.meta.licence,
+    url: g.meta.url,
+    levels: g.levels,
+    topics: g.topics,
+    date: g.date,
+    duration: g.duration,
+    count: g.chapters.length,
+    chapters: g.chapters.map((c) => ({ slug: c.slug, part: c.meta.part, label: chLabel(c), title: c.meta.title, title_en: c.meta.title_en, level: c.meta.level, duration: c.duration })),
+  })).sort((x, y) => y.date.localeCompare(x.date) || x.title.localeCompare(y.title, 'cy'));
   mkdirSync(join(DIST, 'data'), { recursive: true });
-  const json = JSON.stringify({ levels: LEVELS.map(([id, en]) => ({ id, en })), articles: index });
+  const json = JSON.stringify({ levels: LEVELS.map(([id, en]) => ({ id, en })), articles: index, series: seriesIndex });
   writeFileSync(join(DIST, 'data', 'index.json'), json);
   if (json.length > 1_000_000) warn('data/index.json', `is ${(json.length / 1e6).toFixed(1)} MB; consider splitting search data`);
 
-  // home page
-  const list = articles.length
-    ? `<ul>${articles.map((a) => `<li><a href="articles/${a.slug}/" lang="cy">${esc(a.meta.title)}</a>${a.meta.title_en ? ` <span lang="en">(${esc(a.meta.title_en)})</span>` : ''}</li>`).join('')}</ul>`
-    : '<p>No articles yet.</p>';
+  // home page (the no-JavaScript fallback list: standalone articles, and each series with its chapters)
+  const li = (a, href) => `<li><a href="${href}" lang="cy">${esc(a.meta.title)}</a>${a.meta.title_en ? ` <span lang="en">(${esc(a.meta.title_en)})</span>` : ''}</li>`;
+  const units = [
+    ...standalone.map((a) => ({ date: a.meta.date, title: a.meta.title, html: li(a, `articles/${a.slug}/`) })),
+    ...[...groups.values()].map((g) => ({
+      date: g.date,
+      title: g.meta.title,
+      html: `<li><a href="series/${g.slug}/" lang="cy">${esc(g.meta.title)}</a> <span lang="en">(series, ${g.chapters.length} chapter${g.chapters.length === 1 ? '' : 's'})</span><ol>${g.chapters.map((c) => `<li><a href="articles/${c.slug}/" lang="cy">${esc(chLabel(c))}: ${esc(c.meta.title)}</a></li>`).join('')}</ol></li>`,
+    })),
+  ].sort((x, y) => y.date.localeCompare(x.date) || x.title.localeCompare(y.title, 'cy'));
+  const list = units.length ? `<ul>${units.map((u) => u.html).join('')}</ul>` : '<p>No articles yet.</p>';
   const home = fill(readFileSync(join(SITE, 'index.html'), 'utf8'), {
     site_title: SITE_TITLE,
     tagline: SITE_TAGLINE,
@@ -362,7 +521,7 @@ function main() {
   }, 'index.html');
   writeFileSync(join(DIST, 'index.html'), home);
 
-  console.log(`Built ${articles.length} article(s) into dist/.`);
+  console.log(`Built ${articles.length} article(s)${groups.size ? ` and ${groups.size} series page(s)` : ''} into dist/.`);
 }
 
 main();

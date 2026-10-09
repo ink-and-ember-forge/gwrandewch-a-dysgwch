@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@@title@@ · @@site_title@@</title>
+  <meta name="description" content="@@summary@@">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body class="page-series">
+  <a class="skip-link" href="#chapters">Skip to chapters</a>
+
+  <header class="article-head">
+    <div class="wrap">
+      <a class="back" href="../../">← All articles</a>
+      <p class="kicker">Series</p>
+      <h1 lang="cy">@@title@@</h1>
+      @@!title_en_html@@
+      <div class="badges">
+        @@!badges@@
+      </div>
+      @@!credit_html@@
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    @@!summary_html@@
+    <p class="series-count">@@count_text@@ <span id="series-progress"></span></p>
+    <p><a class="start-btn" id="series-start" href="@@first_href@@">@@first_label@@</a></p>
+
+    <ol class="chapters" id="chapters">
+@@!chapters_html@@
+    </ol>
+  </main>
+
+  <script type="module" src="../../js/series.js"></script>
+</body>
+</html>

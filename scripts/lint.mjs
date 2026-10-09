@@ -14,9 +14,11 @@ import { join, dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// GAD_ROOT points the linter at a different content tree (the tests use it); normally the repository root.
+const ROOT = process.env.GAD_ROOT ? resolve(process.env.GAD_ROOT) : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENT = join(ROOT, 'content', 'articles');
-const { analyse, plainText } = createRequire(import.meta.url)('../tools/lint-core.js');
+const { analyse, plainText, parseFrontmatter, normalise, validateSeriesMeta, checkSeriesSet, SLUG_RE } = createRequire(import.meta.url)('../tools/lint-core.js');
+const SERIES_DIR = join(ROOT, 'content', 'series');
 
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith('--')));
@@ -66,6 +68,7 @@ let nErr = 0;
 let nWarn = 0;
 let nInfo = 0;
 let checked = 0;
+const chapters = []; // every article's series membership, for the cross-article check
 
 for (const dir of folders) {
   const mdPath = join(dir, 'article.md');
@@ -77,6 +80,7 @@ for (const dir of folders) {
     en: existsSync(enPath) ? readFileSync(enPath, 'utf8') : null,
   });
   const draft = r.meta?.draft === 'true';
+  if (r.meta?.series) chapters.push({ slug: basename(dir), series: r.meta.series, part: Number(r.meta.part) || 0, draft });
   const issues = r.issues
     .map((i) => (draft && i.severity === 'error' ? { ...i, severity: 'warn' } : i))
     .filter((i) => !(flags.has('--quiet') && i.severity === 'info'));
@@ -95,6 +99,37 @@ for (const dir of folders) {
     else nInfo++;
   }
   if (flags.has('--align') && r.hasEnglish && r.cy) printAlignment(r);
+}
+
+// Series: the optional pages in content/series/ and how the chapters fit together.
+// Only when checking the whole repo, since the second part needs every article.
+if (!targets.length) {
+  const seriesSlugs = [];
+  const seriesIssues = [];
+  if (existsSync(SERIES_DIR)) {
+    for (const name of readdirSync(SERIES_DIR).sort()) {
+      if (name.startsWith('.') || !/\.md$/i.test(name)) continue;
+      const slug = name.replace(/\.md$/i, '');
+      const where = `content/series/${name}`;
+      if (!SLUG_RE.test(slug)) { seriesIssues.push({ severity: 'error', where, message: 'file name must be a lowercase ASCII slug (a-z, 0-9, hyphens), e.g. cymraeg-byw.md' }); continue; }
+      seriesSlugs.push(slug);
+      const fm = parseFrontmatter(normalise(readFileSync(join(SERIES_DIR, name), 'utf8')));
+      if (fm.error) { seriesIssues.push({ severity: 'error', where, message: fm.error }); continue; }
+      for (const p of fm.problems) seriesIssues.push({ severity: 'error', where, message: `line ${p.line}: ${p.message}` });
+      for (const v of validateSeriesMeta(fm.data)) seriesIssues.push({ severity: v.severity, where, message: v.message });
+      if (fm.body.trim()) seriesIssues.push({ severity: 'warn', where, message: 'text below the frontmatter is not used; put the description in "summary"' });
+    }
+  }
+  seriesIssues.push(...checkSeriesSet(chapters, seriesSlugs));
+  if (seriesSlugs.length || chapters.length) {
+    console.log(`\n${STYLE.bold('series')}  ${STYLE.dim(`${new Set(chapters.map((c) => c.series)).size} in use, ${seriesSlugs.length} with a series page`)}`);
+    if (!seriesIssues.length) console.log(`  ${paint(32, '✓')} no problems`);
+    for (const i of seriesIssues) {
+      console.log(`  ${i.where}  ${STYLE[i.severity](i.severity.padEnd(5))}  ${i.message}`);
+      if (IN_ACTIONS) console.log(`::${i.severity === 'error' ? 'error' : 'warning'} title=series::${i.where}: ${i.message}`);
+      if (i.severity === 'error') nErr++; else nWarn++;
+    }
+  }
 }
 
 console.log(`\nChecked ${checked} article(s): ${nErr} error(s), ${nWarn} warning(s), ${nInfo} note(s).`);

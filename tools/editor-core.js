@@ -10,7 +10,7 @@
 }(typeof self !== 'undefined' ? self : this, function (lint) {
   'use strict';
 
-  const META_ORDER = ['title', 'title_en', 'level', 'topics', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
+  const META_ORDER = ['title', 'title_en', 'level', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
   const ABBREVIATIONS = new Set(['mr', 'mrs', 'ms', 'dr', 'st', 'prof', 'rev', 'etc', 'vs', 'cf', 'no']);
 
   const oneLine = (s) => String(s == null ? '' : s).replace(/\s*\n\s*/g, ' ').trim();
@@ -32,7 +32,7 @@
 
   function newMeta() {
     return {
-      title: '', title_en: '', level: '', topics: [], date: today(), summary: '', audio: 'audio.mp3',
+      title: '', title_en: '', level: '', topics: [], series: '', part: '', part_label: '', date: today(), summary: '', audio: 'audio.mp3',
       narrator: '', dialect: '', source: '', licence: '', draft: false, extra: {},
     };
   }
@@ -318,6 +318,27 @@
     return g ? raw.slice(0, g.start) + escText(g.surface) + raw.slice(g.end) : raw;
   }
 
+  // ---------------------------------------------------------- series file
+
+  const newSeriesMeta = () => ({ title: '', title_en: '', summary: '', author: '', publisher: '', edition: '', licence: '', url: '' });
+
+  /** content/series/<slug>.md text from the series form. */
+  function seriesFileText(sm) {
+    const lines = ['---'];
+    for (const k of lint.SERIES_KEYS) if (oneLine(sm[k])) lines.push(`${k}: ${oneLine(sm[k])}`);
+    lines.push('---');
+    return `${lines.join('\n')}\n`;
+  }
+
+  /** Parse a series file into {meta, problems}. */
+  function parseSeriesFile(text) {
+    const fm = lint.parseFrontmatter(lint.normalise(text || ''));
+    const meta = newSeriesMeta();
+    if (fm.error) return { meta, problems: [fm.error] };
+    for (const k of lint.SERIES_KEYS) if (typeof fm.data[k] === 'string') meta[k] = fm.data[k];
+    return { meta, problems: fm.problems.map((p) => `line ${p.line}: ${p.message}`) };
+  }
+
   // ------------------------------------------------------------------ zip
 
   const CRC_TABLE = (() => {
@@ -377,7 +398,7 @@
 
   return {
     META_ORDER, slugify, today, newMeta, newItem, parseArticle, serialize, frontmatterLines,
-    splitSentences, splitText,
+    splitSentences, splitText, newSeriesMeta, seriesFileText, parseSeriesFile,
     formatEntry, formatGloss, validateGloss, glossesOf, plainOf, trimRange, wrapSelection, replaceGloss, removeGloss,
     crc32, makeZip,
   };
