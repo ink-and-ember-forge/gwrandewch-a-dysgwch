@@ -175,15 +175,25 @@ print(sorted(z.namelist())); print(z.read('my-article/article.md').decode('utf-8
   assert.match(listing, /5000/);
 });
 
-test('the preview pipeline (serialize -> parseBlocks -> renderBody) matches the build markup', () => {
-  const md = read('wind-turbines', 'article.md');
-  const en = read('wind-turbines', 'article.en.md');
-  const { meta, items } = E.parseArticle({ md, en });
-  const out = E.serialize(meta, items);
-  const body = out.md.split('\n').slice(out.bodyStartLine - 1).join('\n');
-  const { blocks } = L.parseBlocks(body, []);
-  const enLines = items.filter((i) => i.kind === 'seg').map((i) => i.en);
-  const html = R.renderBody(blocks, enLines);
-  const built = readFileSync(new URL('../dist/articles/wind-turbines/index.html', import.meta.url), 'utf8');
-  assert.ok(built.includes(html), 'editor preview HTML is identical to the built article body');
+test('the preview pipeline (serialize -> parseBlocks -> renderBody) renders the same as the build does from the source files', () => {
+  for (const slug of ['wind-turbines', 'diwrnod-yn-y-farchnad']) {
+    const md = read(slug, 'article.md');
+    const en = read(slug, 'article.en.md');
+
+    // what the build does: source file -> frontmatter -> body -> blocks -> HTML (English lines straight from the file)
+    const fm = L.parseFrontmatter(L.normalise(md));
+    const built = L.parseBlocks(fm.body, []);
+    const builtEn = L.normalise(en).split('\n').map((l) => l.trim()).filter((l) => l && !L.isHeading(l));
+    const expected = R.renderBody(built.blocks, builtEn);
+
+    // what the editor does: file -> rows -> serialize -> blocks -> HTML (English lines from the rows)
+    const { meta, items } = E.parseArticle({ md, en });
+    const out = E.serialize(meta, items);
+    const body = out.md.split('\n').slice(out.bodyStartLine - 1).join('\n');
+    const { blocks } = L.parseBlocks(body, []);
+    const html = R.renderBody(blocks, items.filter((i) => i.kind === 'seg').map((i) => i.en));
+
+    assert.equal(html, expected, `${slug}: editor preview HTML equals the build's`);
+    assert.ok(html.includes('data-entries='), `${slug}: tooltips carry their entries`);
+  }
 });
