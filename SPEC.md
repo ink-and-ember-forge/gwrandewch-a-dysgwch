@@ -262,7 +262,7 @@ Sorting: newest `date` first, ties broken by title.
 - **Text column:** readable measure (~65ch), generous line height, `lang="cy"`
 - **Sticky audio bar:** play/pause, scrubber with elapsed/total time, speed (0.6x, 0.75x, 1x, 1.25x), previous/next sentence
 - **Sentence sync** (when `timings.json` exists):
-  - Current sentence highlighted (background **and** a non-colour cue such as a left border or underline)
+  - Current sentence highlighted (background **and** a non-colour cue such as a left border or underline), but only once the reader has started the audio for the first time: nothing is highlighted, and nothing scrolls, when the page loads or while seeking before the first play
   - Auto-scrolls to keep the current sentence in view, with a "stop following" behaviour if the user scrolls manually
   - **Click a sentence to seek and play from it**
   - Clicking a glossed word shows its tooltip and does *not* seek

@@ -27,6 +27,7 @@ export function initPlayer({ audio, segs, timings, fallbackDuration }) {
   prevBtn.disabled = nextBtn.disabled = !sync;
 
   let index = -1;
+  let started = false; // nothing is highlighted until the reader first starts the audio
   let following = true;
   let scrubbing = false;
   let raf = 0;
@@ -63,7 +64,7 @@ export function initPlayer({ audio, segs, timings, fallbackDuration }) {
     const t = audio.currentTime;
     if (!scrubbing) seek.value = t;
     cur.textContent = fmtTime(t);
-    if (sync) setIndex(indexAt(t));
+    if (sync && started) setIndex(indexAt(t));
   }
 
   function loop() {
@@ -125,13 +126,12 @@ export function initPlayer({ audio, segs, timings, fallbackDuration }) {
   window.addEventListener('pointerup', () => { scrubbing = false; });
   seek.addEventListener('input', () => { audio.currentTime = Number(seek.value); render(); });
 
-  audio.addEventListener('play', () => { updateButton(); cancelAnimationFrame(raf); loop(); });
+  audio.addEventListener('play', () => { started = true; updateButton(); cancelAnimationFrame(raf); loop(); });
   for (const ev of ['pause', 'ended']) audio.addEventListener(ev, () => { updateButton(); render(); });
   for (const ev of ['timeupdate', 'seeked']) audio.addEventListener(ev, render);
   for (const ev of ['loadedmetadata', 'durationchange']) audio.addEventListener(ev, setDuration);
   setDuration();
   updateButton();
-  if (sync) setIndex(0);
 
   // click a sentence to seek and play (glossed words only show their tooltip)
   if (sync) {
