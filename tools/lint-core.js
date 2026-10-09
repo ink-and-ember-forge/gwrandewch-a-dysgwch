@@ -58,6 +58,36 @@
     return { data, problems, body: text.slice(m[0].length), bodyLine: (m[0].match(/\n/g) || []).length + 1 };
   }
 
+  // Word-type tags usable in a gloss entry: "tyrbin, tyrbinau, eg = turbine".
+  // Welsh dictionary abbreviations are accepted as aliases of the English labels.
+  const TAGS = {
+    eg: 'eg', eb: 'eb', egb: 'egb',
+    adj: 'adj', ans: 'adj',
+    verb: 'verb', be: 'verb', bf: 'verb',
+    prep: 'prep', ardd: 'prep',
+    adv: 'adv', adf: 'adv',
+    conj: 'conj', cys: 'conj',
+    pron: 'pron', rhag: 'pron',
+  };
+  const GENDER_TAGS = ['eg', 'eb', 'egb'];
+
+  /**
+   * Parse one gloss entry field: "forms, ..., tag = english".
+   * Returns {entry} or {error}. The tag is optional; the last comma-separated
+   * Welsh part is only treated as a tag if it is a known one.
+   */
+  function parseEntry(field) {
+    const eq = field.indexOf('=');
+    const left = field.slice(0, eq).trim();
+    const en = field.slice(eq + 1).trim();
+    const cy = left.split(',').map((x) => x.trim()).filter(Boolean);
+    let tag = null;
+    if (cy.length && TAGS[cy[cy.length - 1].toLowerCase()]) tag = TAGS[cy.pop().toLowerCase()];
+    if (!cy.length) return { error: `entry "${field}" has no Welsh word before the =` };
+    if (!en) return { error: `entry "${field}" has nothing after the = (the English meaning)` };
+    return { entry: { cy, tag, en } };
+  }
+
   /** Split one line into text and gloss parts; syntax problems are pushed to `problems`. */
   function parseInline(line, problems) {
     const parts = [];
@@ -75,15 +105,26 @@
         }
         const inner = line.slice(i + 2, end);
         if (inner.includes('{{')) problems.push(`nested "{{" inside a gloss: ${line}`);
-        const f = inner.split('|');
-        const surface = (f[0] || '').trim();
-        const tip = (f[1] || '').trim();
-        const note = f.slice(2).join('|').trim();
+        const f = inner.split('|').map((x) => x.trim());
+        const surface = f[0] || '';
+        const tip = f[1] || '';
+        const entries = [];
+        const notes = [];
+        for (const extra of f.slice(2)) {
+          if (!extra) continue;
+          const nm = extra.match(/^note\s*:\s*(.*)$/i);
+          if (nm) { if (nm[1]) notes.push(nm[1]); else problems.push(`gloss "${surface}": empty note:`); }
+          else if (extra.includes('=')) {
+            const r = parseEntry(extra);
+            if (r.error) problems.push(`gloss "${surface}": ${r.error}`); else entries.push(r.entry);
+          } else notes.push(extra);
+        }
+        const note = notes.join('\n');
         if (f.length < 2) problems.push(`gloss "{{${inner}}}" needs a translation: {{word|translation}}`);
         else if (!surface) problems.push(`gloss with empty surface text: {{${inner}}}`);
         else if (!tip) problems.push(`gloss "${surface}" has an empty translation`);
         flush();
-        parts.push({ surface, tip, note });
+        parts.push({ surface, tip, note, entries });
         i = end + 2;
         continue;
       }
@@ -275,8 +316,14 @@
           }
           if (lang === 'cy' && /\{\{/.test(row.raw)) {
             const problems = [];
-            parseInline(row.text, problems);
+            const parts = parseInline(row.text, problems);
             for (const p of problems) at('error', 'gloss', p);
+            for (const g of parts.filter((x) => x.entries)) {
+              for (const e of g.entries) {
+                if (/\((m|f|eg|eb|egb)\)/i.test(e.en)) at('warn', 'gloss-entry', `Gloss "${g.surface}": remove the typed (m)/(f)/(eg)/(eb) from "${e.en}"; the gender tag is added from the Welsh tag automatically.`);
+                if (GENDER_TAGS.includes(e.tag) && e.cy.length > 2) at('info', 'gloss-entry', `Gloss "${g.surface}": "${e.cy.join(', ')}" has more than two forms; expected "singular, plural, tag".`);
+              }
+            }
           }
           if (lang === 'en' && /\{\{/.test(row.raw)) at('warn', 'gloss-in-english', 'Glosses ({{word|meaning}}) belong in article.md; here the braces would be shown literally.');
         } else if (!row.text) {
@@ -382,7 +429,7 @@
   }
 
   return {
-    LEVELS, LEVEL_IDS, DIALECTS, KNOWN_KEYS, MAX_SEGMENT_CHARS,
-    normalise, parseFrontmatter, parseInline, plainText, isHeading, validateMeta, scanBody, analyse,
+    LEVELS, LEVEL_IDS, DIALECTS, KNOWN_KEYS, MAX_SEGMENT_CHARS, TAGS, GENDER_TAGS,
+    normalise, parseFrontmatter, parseEntry, parseInline, plainText, isHeading, validateMeta, scanBody, analyse,
   };
 }));

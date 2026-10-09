@@ -10,7 +10,7 @@ dialect: south
 narrator: Placeholder (silent sample audio)
 ---
 
-Bore dydd Sadwrn, es i i'r {{farchnad|market|soft mutation of marchnad after i'r}} yng Nghaerdydd.
+Bore dydd Sadwrn, es i i'r {{farchnad|market|marchnad, marchnadoedd, eb = market|note: soft mutation of marchnad after i'r}} yng Nghaerdydd.
 Roedd hi'n brysur iawn.
 
-Prynais {{fara|bread|soft mutation of bara}} ffres a {{chaws|cheese|aspirate mutation of caws after a}} lleol.
+Prynais {{fara|bread|bara, eg = bread|note: soft mutation of bara}} ffres a {{chaws|cheese|caws, cawsiau, eg = cheese|note: aspirate mutation of caws after a}} lleol.
