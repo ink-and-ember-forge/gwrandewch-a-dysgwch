@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Format checker · Gwrandewch a Dysgwch</title>
+  <meta name="color-scheme" content="light dark">
+  <style>
+    :root { --bg:#fbf8f1; --surface:#fff; --ink:#1d2a24; --muted:#56635b; --line:#ddd6c6; --accent:#1f6b45; --accent-ink:#fff; --err:#b3262d; --warn:#8a5a00; --info:#2a5d8f; --errbg:#fbe4e4; --warnbg:#fff1c9; --infobg:#e3eefa; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#111915; --surface:#19231e; --ink:#eaf0ea; --muted:#a6b5ab; --line:#2b3a32; --accent:#5fc58d; --accent-ink:#0a1710; --err:#ff8a8f; --warn:#f0c040; --info:#8cc0f5; --errbg:#3a1a1c; --warnbg:#3b3512; --infobg:#18283a; } }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:1rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    .wrap { max-width: 72rem; margin: 0 auto; padding: 1rem 16px 3rem; }
+    h1 { font: 700 1.6rem/1.2 Georgia,serif; margin: .5rem 0; }
+    h2 { font-size: 1.1rem; margin: 1.5rem 0 .5rem; }
+    .lead { color: var(--muted); margin-top: 0; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+    .col label.t { display:block; font-weight:600; margin-bottom:.25rem; }
+    textarea { width:100%; height: 20rem; resize: vertical; border:1px solid var(--line); border-radius:8px; padding:.6rem; background:var(--surface); color:inherit; font: .9rem/1.5rem ui-monospace,SFMono-Regular,Menlo,monospace; white-space: pre; overflow: auto; tab-size: 4; }
+    button, .btn { font:inherit; padding:.4rem .9rem; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:inherit; cursor:pointer; min-height:2.25rem; }
+    button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+    :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+    .row { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; margin:.5rem 0; }
+    .pill { display:inline-block; padding:.1rem .7rem; border-radius:999px; font-size:.9rem; font-weight:600; }
+    .pill.error { background:var(--errbg); color:var(--err); }
+    .pill.warn { background:var(--warnbg); color:var(--warn); }
+    .pill.info { background:var(--infobg); color:var(--info); }
+    .pill.ok { background:var(--accent); color:var(--accent-ink); }
+    ul#issues { list-style:none; margin:0; padding:0; display:grid; gap:.35rem; }
+    ul#issues li button { width:100%; text-align:left; display:grid; grid-template-columns: 8rem 9rem 1fr; gap:.5rem; align-items:baseline; background:var(--surface); border-radius:8px; padding:.4rem .6rem; border-left:4px solid var(--line); }
+    ul#issues li.error button { border-left-color:var(--err); }
+    ul#issues li.warn button { border-left-color:var(--warn); }
+    ul#issues li.info button { border-left-color:var(--info); }
+    .where { font:.8rem ui-monospace,monospace; color:var(--muted); }
+    .rule { font:.75rem ui-monospace,monospace; color:var(--muted); }
+    table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; font-family: Georgia,serif; }
+    th, td { text-align:left; vertical-align:top; padding:.35rem .6rem; border-bottom:1px solid var(--line); }
+    th { font:600 .85rem system-ui,sans-serif; color:var(--muted); background:var(--bg); }
+    td.n { width:2.5rem; color:var(--muted); font:.8rem system-ui,sans-serif; text-align:right; }
+    td.head { font-weight:700; background:var(--bg); }
+    tr.gap td { height:.6rem; padding:0; background:var(--bg); }
+    td.missing { color:var(--err); font-style:italic; background:var(--errbg); }
+    td.error { background:var(--errbg); }
+    td.warn { background:var(--warnbg); }
+    td.info { background:var(--infobg); }
+    td.line { cursor:pointer; }
+    kbd { font:.75em system-ui; padding:.1em .4em; border:1px solid var(--line); border-radius:4px; background:var(--surface); }
+    .hidden { display:none !important; }
+    .empty { color:var(--muted); padding:.5rem 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Format checker</h1>
+  <p class="lead">Paste your Welsh <code>article.md</code> and (optionally) English <code>article.en.md</code>. Checks run as you type, entirely in your browser. Nothing is uploaded and nothing is changed. The same rules run in the terminal with <code>node scripts/lint.mjs</code>.</p>
+
+  <div class="cols">
+    <div class="col">
+      <label class="t" for="md">article.md (Welsh)</label>
+      <textarea id="md" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      <div class="row"><label>Open file <input type="file" id="md-file" accept=".md,text/markdown,text/plain"></label></div>
+    </div>
+    <div class="col">
+      <label class="t" for="en">article.en.md (English, optional)</label>
+      <textarea id="en" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      <div class="row"><label>Open file <input type="file" id="en-file" accept=".md,text/markdown,text/plain"></label></div>
+    </div>
+  </div>
+  <div class="row">
+    <button type="button" id="example">Load an example with mistakes</button>
+    <button type="button" id="clear">Clear both</button>
+  </div>
+
+  <h2>Result</h2>
+  <div class="row" id="summary" role="status" aria-live="polite"></div>
+  <div class="row" id="filters">
+    <label><input type="checkbox" id="f-error" checked> Errors</label>
+    <label><input type="checkbox" id="f-warn" checked> Warnings</label>
+    <label><input type="checkbox" id="f-info" checked> Notes</label>
+    <span class="where">Click an item to jump to that line.</span>
+  </div>
+  <ul id="issues"></ul>
+
+  <h2>Side by side</h2>
+  <p class="lead" id="align-note">Line <em>n</em> of the Welsh must be the translation of line <em>n</em> of the English. A highlighted cell has a problem; a gap between rows is a paragraph break.</p>
+  <div id="align"></div>
+</div>
+
+<script src="lint-core.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const md = $('md');
+  const en = $('en');
+  const EXAMPLE_CY = `---
+title: Diwrnod yn y farchnad
+level: sylfaen
+date: 2026-10-09
+summary: A short piece about a busy Saturday morning.
+---
+
+Bore dydd Sadwrn, es i i'r {{farchnad|market|soft mutation}} yng Nghaerdydd.
+Roedd hi'n brysur  iawn.
+Prynais {{fara|bread}} ffres
+a chaws lleol.
+
+Sut mae'r tywydd ?
+Mae'n braf iawn.
+`;
+  const EXAMPLE_EN = `On Saturday morning, I went to the market in Cardiff.
+It was very busy.
+I bought fresh bread and local cheese.
+
+How is the weather?
+It's very nice.
+`;
+  let timer = 0;
+  const rank = { error: 0, warn: 1, info: 2 };
+
+  function jump(file, line) {
+    const ta = file === 'article.md' ? md : en;
+    const lines = ta.value.split('\n');
+    let start = 0;
+    for (let i = 0; i < line - 1 && i < lines.length; i++) start += lines[i].length + 1;
+    const end = start + (lines[line - 1] || '').length;
+    ta.focus();
+    ta.setSelectionRange(start, end);
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 24;
+    ta.scrollTop = Math.max(0, (line - 3) * lh);
+    ta.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function cell(tag, text, cls) {
+    const td = document.createElement(tag);
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  }
+
+  function renderAlign(r, byLine) {
+    const box = $('align');
+    box.replaceChildren();
+    if (!r.cy) { box.textContent = 'Fix the frontmatter first.'; return; }
+    if (!r.hasEnglish) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Add the English text to see the two files side by side.'; box.append(p); return; }
+    const table = document.createElement('table');
+    const head = document.createElement('tr');
+    head.append(cell('th', '#'), cell('th', 'Welsh'), cell('th', 'English'));
+    table.append(head);
+    const n = Math.max(r.counts.cy, r.counts.en);
+    const sev = (file, line) => (line && byLine[file + ':' + line]) || '';
+    for (let i = 0; i < n; i++) {
+      const cy = r.cy.segs[i];
+      const e = r.en.segs[i];
+      for (const h of r.cy.headings.filter((x) => x.beforeIndex === i)) {
+        const tr = document.createElement('tr');
+        tr.append(cell('td', '', 'n'), cell('td', '## ' + h.text, 'head'), cell('td', '', 'head'));
+        table.append(tr);
+      }
+      if (i > 0 && cy && r.cy.segs[i - 1] && cy.para !== r.cy.segs[i - 1].para) {
+        const gap = document.createElement('tr'); gap.className = 'gap';
+        gap.append(cell('td', ''), cell('td', ''), cell('td', ''));
+        table.append(gap);
+      }
+      const tr = document.createElement('tr');
+      const a = cy ? cell('td', ArticleLint.plainText(cy.text), 'line ' + sev('article.md', cy.line)) : cell('td', 'missing', 'missing');
+      const b = e ? cell('td', e.text, 'line ' + sev('article.en.md', e.line)) : cell('td', 'missing', 'missing');
+      if (cy) a.addEventListener('click', () => jump('article.md', cy.line));
+      if (e) b.addEventListener('click', () => jump('article.en.md', e.line));
+      tr.append(cell('td', String(i + 1), 'n'), a, b);
+      table.append(tr);
+    }
+    box.append(table);
+  }
+
+  function run() {
+    const r = ArticleLint.analyse({ md: md.value, en: en.value });
+    const counts = { error: 0, warn: 0, info: 0 };
+    const byLine = {};
+    for (const i of r.issues) {
+      counts[i.severity]++;
+      const k = i.file + ':' + i.line;
+      if (!byLine[k] || rank[i.severity] < rank[byLine[k]]) byLine[k] = i.severity;
+    }
+    const sum = $('summary');
+    sum.replaceChildren();
+    const pill = (cls, text) => { const s = document.createElement('span'); s.className = 'pill ' + cls; s.textContent = text; sum.append(s); };
+    if (!md.value.trim()) pill('info', 'Paste or open article.md to begin');
+    else if (!r.issues.length) pill('ok', '✓ No problems found');
+    else {
+      if (counts.error) pill('error', counts.error + ' error' + (counts.error === 1 ? '' : 's') + ' (the build would fail)');
+      if (counts.warn) pill('warn', counts.warn + ' warning' + (counts.warn === 1 ? '' : 's'));
+      if (counts.info) pill('info', counts.info + ' note' + (counts.info === 1 ? '' : 's'));
+    }
+    const t = document.createElement('span');
+    t.className = 'where';
+    t.textContent = r.counts.cy + ' Welsh line(s)' + (r.hasEnglish ? ', ' + r.counts.en + ' English' : ', no English');
+    sum.append(t);
+
+    const ul = $('issues');
+    ul.replaceChildren();
+    for (const i of r.issues) {
+      if (!$('f-' + i.severity).checked) continue;
+      const li = document.createElement('li');
+      li.className = i.severity;
+      const b = document.createElement('button');
+      b.type = 'button';
+      const w = document.createElement('span'); w.className = 'where'; w.textContent = i.file + ':' + i.line;
+      const ru = document.createElement('span'); ru.className = 'rule'; ru.textContent = i.rule;
+      const m = document.createElement('span'); m.textContent = i.message;
+      b.append(w, ru, m);
+      b.addEventListener('click', () => jump(i.file, i.line));
+      li.append(b);
+      ul.append(li);
+    }
+    renderAlign(r, byLine);
+  }
+
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(run, 150); };
+  md.addEventListener('input', schedule);
+  en.addEventListener('input', schedule);
+  for (const id of ['f-error', 'f-warn', 'f-info']) $(id).addEventListener('change', run);
+  $('example').addEventListener('click', () => { md.value = EXAMPLE_CY; en.value = EXAMPLE_EN; run(); });
+  $('clear').addEventListener('click', () => { md.value = ''; en.value = ''; run(); });
+  for (const [fileId, ta] of [['md-file', md], ['en-file', en]]) {
+    $(fileId).addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      if (f) { ta.value = await f.text(); run(); }
+    });
+  }
+  run();
+})();
+</script>
+</body>
+</html>

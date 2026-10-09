@@ -9,8 +9,13 @@ import {
 } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Parsing and metadata rules are shared with the linter so the two never disagree.
+const {
+  LEVELS, MAX_SEGMENT_CHARS, parseFrontmatter, parseInline, isHeading, validateMeta,
+} = createRequire(import.meta.url)('../tools/lint-core.js');
 const CONTENT = join(ROOT, 'content', 'articles');
 const SITE = join(ROOT, 'site');
 const DIST = join(ROOT, 'dist');
@@ -18,20 +23,6 @@ const DIST = join(ROOT, 'dist');
 const SITE_TITLE = 'Gwrandewch a Dysgwch';
 const SITE_TAGLINE = 'Welsh articles with audio, for learners: listen, read along, tap a word for its meaning.';
 
-const LEVELS = [
-  ['mynediad', 'Entry'],
-  ['sylfaen', 'Foundation'],
-  ['canolradd', 'Intermediate'],
-  ['uwch', 'Advanced'],
-  ['hyfedredd', 'Proficiency'],
-];
-const LEVEL_IDS = LEVELS.map(([id]) => id);
-const DIALECTS = ['north', 'south', 'neutral'];
-const KNOWN_KEYS = new Set([
-  'title', 'title_en', 'level', 'topics', 'date', 'summary', 'audio',
-  'narrator', 'dialect', 'source', 'licence', 'draft',
-]);
-const MAX_SEGMENT_CHARS = 250;
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
 const IN_ACTIONS = !!process.env.GITHUB_ACTIONS;
@@ -93,64 +84,7 @@ function mp3Duration(buf) {
 }
 
 // ------------------------------------------------------------ parsing
-
-const unquote = (v) => (/^(["']).*\1$/.test(v) && v.length >= 2 ? v.slice(1, -1) : v);
-
-function parseFrontmatter(text) {
-  const m = text.match(/^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/);
-  if (!m) return { error: 'article.md must start with a frontmatter block delimited by --- lines' };
-  const data = {};
-  for (const [n, line] of m[1].split('\n').entries()) {
-    if (!line.trim() || line.trim().startsWith('#')) continue;
-    const kv = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
-    if (!kv) return { error: `frontmatter line ${n + 1} is not "key: value": ${line}` };
-    let v = kv[2].trim();
-    if (v.startsWith('[')) {
-      if (!v.endsWith(']')) return { error: `frontmatter "${kv[1]}": list is missing its closing ]` };
-      v = v.slice(1, -1).split(',').map((s) => unquote(s.trim())).filter(Boolean);
-    } else {
-      v = unquote(v);
-    }
-    data[kv[1]] = v;
-  }
-  return { data, body: text.slice(m[0].length) };
-}
-
-/** Split one line into text and gloss parts. Problems are pushed to `problems`. */
-function parseInline(line, problems) {
-  const parts = [];
-  let buf = '';
-  let i = 0;
-  const flush = () => { if (buf) { parts.push({ text: buf }); buf = ''; } };
-  while (i < line.length) {
-    if (line.startsWith('\\{{', i)) { buf += '{{'; i += 3; continue; }
-    if (line.startsWith('{{', i)) {
-      const end = line.indexOf('}}', i + 2);
-      if (end < 0) {
-        problems.push(`unclosed "{{" in: ${line}`);
-        buf += line.slice(i);
-        break;
-      }
-      const inner = line.slice(i + 2, end);
-      if (inner.includes('{{')) problems.push(`nested "{{" inside a gloss: ${line}`);
-      const f = inner.split('|');
-      const surface = (f[0] || '').trim();
-      const tip = (f[1] || '').trim();
-      const note = f.slice(2).join('|').trim();
-      if (f.length < 2) problems.push(`gloss "{{${inner}}}" needs a translation: {{word|translation}}`);
-      else if (!surface) problems.push(`gloss with empty surface text: {{${inner}}}`);
-      else if (!tip) problems.push(`gloss "${surface}" has an empty translation`);
-      flush();
-      parts.push({ surface, tip, note });
-      i = end + 2;
-      continue;
-    }
-    if (line.startsWith('}}', i)) { problems.push(`stray "}}" in: ${line}`); buf += '}}'; i += 2; continue; }
-    buf += line[i++];
-  }
-  flush();
-  return parts;
-}
+// parseFrontmatter, parseInline and validateMeta live in tools/lint-core.js
 
 const renderInline = (parts) => parts.map((p) => {
   if (p.text !== undefined) return esc(p.text);
@@ -159,8 +93,6 @@ const renderInline = (parts) => parts.map((p) => {
 }).join('');
 
 const plainInline = (parts) => parts.map((p) => (p.text !== undefined ? p.text : p.surface)).join('');
-
-const isHeading = (line) => line.startsWith('## ');
 
 /** Parse the one-line-one-sentence body into blocks. */
 function parseBody(body, where) {
@@ -216,35 +148,15 @@ function loadArticle(slug) {
   const before = errors.length;
   const at = `${where}/article.md`;
 
-  for (const key of Object.keys(meta)) if (!KNOWN_KEYS.has(key)) warn(at, `unknown frontmatter field "${key}"`);
-  for (const key of ['title', 'level', 'date', 'summary']) {
-    if (!meta[key] || typeof meta[key] !== 'string') err(at, `missing required frontmatter field "${key}"`);
-  }
-  if (typeof meta.level === 'string' && !LEVEL_IDS.includes(meta.level)) {
-    err(at, `level "${meta.level}" is not one of: ${LEVEL_IDS.join(', ')}`);
-  }
-  if (typeof meta.date === 'string') {
-    const d = new Date(`${meta.date}T00:00:00Z`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(meta.date) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== meta.date) {
-      err(at, `date "${meta.date}" must be a real date as YYYY-MM-DD`);
-    }
-  }
-  if (meta.dialect && !DIALECTS.includes(meta.dialect)) err(at, `dialect must be one of: ${DIALECTS.join(', ')}`);
-
-  let topics = [];
-  if (meta.topics !== undefined) {
-    if (!Array.isArray(meta.topics)) err(at, 'topics must be a list, e.g. topics: [food, shopping]');
-    else {
-      topics = meta.topics.map((t) => t.toLowerCase());
-      for (const t of topics) if (!/^[a-z0-9-]+$/.test(t)) err(at, `topic "${t}" must be lowercase letters, digits or hyphens`);
-    }
-  }
+  for (const p of fm.problems) err(at, `line ${p.line}: ${p.message}`);
+  for (const v of validateMeta(meta)) (v.severity === 'error' ? err : warn)(at, v.message);
+  const topics = Array.isArray(meta.topics) ? meta.topics.map((t) => t.toLowerCase()) : [];
 
   // audio
   const audioName = meta.audio || 'audio.mp3';
   let duration = null;
   if (/[\\/]/.test(audioName) || audioName.startsWith('.')) {
-    err(at, `audio "${audioName}" must be a plain filename inside the article folder`);
+    // reported by validateMeta
   } else if (!existsSync(join(dir, audioName))) {
     err(at, `audio file "${audioName}" not found in the article folder`);
   } else {
@@ -333,7 +245,7 @@ function loadArticle(slug) {
 // ------------------------------------------------------------- rendering
 
 const levelBadge = (level) => {
-  const rank = LEVEL_IDS.indexOf(level) + 1;
+  const rank = LEVELS.findIndex(([id]) => id === level) + 1;
   const dots = '●'.repeat(rank) + '○'.repeat(LEVELS.length - rank);
   const en = LEVELS[rank - 1][1];
   return `<span class="badge badge-level" data-level="${level}"><span class="dots" aria-hidden="true">${dots}</span> ${esc(cap(level))} <span class="badge-en" lang="en">${en}</span></span>`;
@@ -423,11 +335,7 @@ function main() {
   // static assets (all referenced relatively)
   for (const dir of ['css', 'js']) cpSync(join(SITE, dir), join(DIST, dir), { recursive: true });
   if (existsSync(join(SITE, 'favicon.svg'))) cpSync(join(SITE, 'favicon.svg'), join(DIST, 'favicon.svg'));
-  const syncTool = join(ROOT, 'tools', 'sync-tool.html');
-  if (existsSync(syncTool)) {
-    mkdirSync(join(DIST, 'tools'), { recursive: true });
-    cpSync(syncTool, join(DIST, 'tools', 'sync-tool.html'));
-  }
+  cpSync(join(ROOT, 'tools'), join(DIST, 'tools'), { recursive: true });
 
   // article pages + audio
   const tpl = readFileSync(join(SITE, 'article.template.html'), 'utf8');

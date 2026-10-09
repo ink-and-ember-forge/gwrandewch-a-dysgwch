@@ -47,7 +47,27 @@ Open `tools/sync-tool.html` (also at `<site>/tools/sync-tool.html`), load the au
 
 It is an array of start times in seconds, one per sentence, strictly increasing: `[0.0, 4.1, 6.8]`. If you re-export the audio, re-sync.
 
-## 5. Check and publish
+## 5. Check the formatting
+
+Two tools, same rules, report-only (neither ever edits your files):
+
+- **Browser:** open `tools/check.html` (or `<site>/tools/check.html`), paste or open both files. Problems list as you type, click one to jump to the line, and a side-by-side table shows Welsh line *n* next to English line *n* so a missing or merged line is obvious.
+- **Terminal:** `node scripts/lint.mjs [slug]` (add `--align` for the side-by-side table, `--strict` to fail on warnings, `--quiet` to hide notes).
+
+What it checks, beyond what the build already enforces:
+
+| Area | Examples |
+|---|---|
+| Alignment | line counts, a question matched with a statement, a line far longer/shorter than its pair, blank-line paragraphs and `##` headings that don't mirror each other, and a hint at where the files drift apart |
+| Whitespace | tabs, trailing or leading spaces, double spaces, non-breaking spaces, invisible characters, runs of blank lines |
+| Typography | space before `, ; : ! ?`, missing space after a comma, mixed straight/curly apostrophes, quotes or ellipses, `--` for dashes, decomposed accents (ŵ ŷ typed as letter + mark) |
+| Stray markdown | lists, `# ` or `###` headings, `---` rules, `**bold**`, links, HTML, backticks (none are rendered, and a `---` or `-` line would become a timed sentence) |
+| English file | frontmatter by mistake, `{{glosses}}` that belong in the Welsh file |
+| Structure | several sentences on one line, a sentence hard-wrapped over two lines |
+
+Errors fail the build; warnings and notes are advice, and CI shows them as annotations without blocking.
+
+## 6. Build and publish
 
 ```bash
 node scripts/build.mjs          # same validation CI runs; needs Node 20+
