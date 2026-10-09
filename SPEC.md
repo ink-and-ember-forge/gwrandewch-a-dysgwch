@@ -44,19 +44,24 @@ content/articles/<slug>/  ──►  scripts/build.mjs  ──►  dist/  ──
 ```
 .
 ├── content/
-│   └── articles/
-│       └── diwrnod-yn-y-farchnad/
-│           ├── article.md          # required: Welsh text + frontmatter
-│           ├── audio.mp3           # required: narration
-│           ├── article.en.md       # optional: sentence-aligned English
-│           └── timings.json        # optional: enables sentence highlighting
+│   ├── articles/
+│   │   └── diwrnod-yn-y-farchnad/
+│   │       ├── article.md          # required: Welsh text + frontmatter
+│   │       ├── audio.mp3           # required: narration
+│   │       ├── article.en.md       # optional: sentence-aligned English
+│   │       └── timings.json        # optional: enables sentence highlighting
+│   └── series/
+│       └── cymraeg-byw.md          # optional: title, description and book credit for a series
 ├── site/
 │   ├── index.html                  # home page template
 │   ├── article.template.html       # article page template
+│   ├── series.template.html        # series page template
 │   ├── css/styles.css
 │   └── js/
 │       ├── index.js                # filters, search, card rendering
 │       ├── article.js              # page bootstrap
+│       ├── series.js               # series page: read progress, "continue"
+│       ├── progress.js             # which chapters this browser has read
 │       ├── player.js               # audio + sentence sync
 │       ├── tooltip.js              # gloss tooltips
 │       └── util.js                 # diacritic folding, URL state
@@ -95,6 +100,9 @@ Restricted YAML subset (flat `key: value`, plus inline lists `[a, b]`) so the bu
 | `title_en` | no | English title, shown on cards and under the heading |
 | `level` | yes | One of `mynediad`, `sylfaen`, `canolradd`, `uwch`, `hyfedredd` (Entry, Foundation, Intermediate, Advanced, Proficiency). Lowercase in frontmatter; displayed capitalised, with the English name as a secondary label. Order is fixed in that sequence for filters and badges. |
 | `topics` | no | List, e.g. `[food, shopping]`; lowercase tags |
+| `series` | no | Series this article is a chapter of: lowercase slug, the same for every chapter (section 4.8) |
+| `part` | with `series` | Whole number from 1: the chapter's position. Unique within a series; required with `series`, and `series` is required with it |
+| `part_label` | no | What readers see instead of "Part N" ("Uned 3", "Chapter 3") |
 | `date` | yes | `YYYY-MM-DD`; drives newest-first ordering |
 | `summary` | yes | One or two sentences, shown on the card |
 | `audio` | yes | Filename in the same folder (default `audio.mp3`) |
@@ -188,6 +196,21 @@ I bought fresh bread and local cheese.
 ```
 
 ---
+
+### 4.8 Series
+
+A **series** groups articles as the chapters of a book or course. Membership is declared on each chapter (`series`, `part`, optional `part_label`), so adding a chapter is still just adding a folder.
+
+**Series file (optional):** `content/series/<series>.md`, frontmatter only: `title` (required), `title_en`, `summary`, `author`, `publisher`, `edition`, `licence`, `url` (http/https). Without it the series is titled from its slug. Text below the frontmatter is ignored (with a warning).
+
+**Behaviour**
+- A series page is built at `series/<series>/`: title, description, book credit, chapter count and total audio length, a "Start / Continue" button, and the ordered chapter list.
+- A chapter page shows the series name and chapter label above the title, an "All N chapters" link, and **previous / next chapter** links (in part order, skipping gaps) in place of the date-based older/newer links. Standalone articles keep older/newer links among standalone articles only.
+- The home page shows a series as **one card** with its chapters inside (collapsed; open when filtering). Search and the level/topic filters work on chapters; a series card appears when any chapter matches and lists the matching chapters. A **Series** filter chip limits the list to one series (`?series=<slug>`). A series' title, description and author are searchable from every chapter.
+- **Read tracking** (browser only, no accounts): a chapter can be marked read (also set when its audio ends); the series page and card show progress and "Continue with …".
+- `data/index.json` gains `series` entries (with ordered `chapters`) and per-article `series`, `part` and `label`.
+
+**Validation.** Errors: invalid series slug; `part` not a positive integer; `series` without `part` or `part` without `series`; duplicate `part` within a series; series file without `title`, with a bad `url`, or with a non-slug file name. Warnings: a gap in part numbers (naming draft chapters), a one-chapter series with no series file (likely typo), a series file with no published chapter, unknown series-file fields.
 
 ## 5. Build pipeline (`scripts/build.mjs`)
 

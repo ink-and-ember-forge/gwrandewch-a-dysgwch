@@ -20,7 +20,10 @@
   ];
   const LEVEL_IDS = LEVELS.map((l) => l[0]);
   const DIALECTS = ['north', 'south', 'neutral'];
-  const KNOWN_KEYS = ['title', 'title_en', 'level', 'topics', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
+  const KNOWN_KEYS = ['title', 'title_en', 'level', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
+  // content/series/<slug>.md: the optional page for a series (a book, a course) whose chapters are articles
+  const SERIES_KEYS = ['title', 'title_en', 'summary', 'author', 'publisher', 'edition', 'licence', 'url'];
+  const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   const MAX_SEGMENT_CHARS = 250;
 
   // ------------------------------------------------------------ parsing
@@ -37,7 +40,7 @@
    */
   function parseFrontmatter(text) {
     const m = text.match(/^---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/);
-    if (!m) return { error: 'article.md must start with a frontmatter block delimited by --- lines' };
+    if (!m) return { error: 'the file must start with a frontmatter block delimited by --- lines' };
     const data = {};
     const problems = [];
     m[1].split('\n').forEach((line, k) => {
@@ -198,8 +201,80 @@
     if (meta.draft !== undefined && meta.draft !== 'true' && meta.draft !== 'false') {
       out.push({ severity: 'warn', message: `draft should be true or false (got "${meta.draft}"); only "true" hides the article` });
     }
+    // series membership
+    const hasSeries = meta.series !== undefined && meta.series !== '';
+    const hasPart = meta.part !== undefined && meta.part !== '';
+    if (hasSeries && (typeof meta.series !== 'string' || !SLUG_RE.test(meta.series))) {
+      bad(`series "${meta.series}" must be lowercase letters, digits and hyphens, e.g. series: cymraeg-byw`);
+    }
+    if (hasPart && (typeof meta.part !== 'string' || !/^[1-9]\d{0,3}$/.test(meta.part))) {
+      bad(`part "${meta.part}" must be a whole number from 1, the chapter's position in the series`);
+    }
+    if (hasSeries && !hasPart) bad('a chapter of a series needs a part number, e.g. part: 3');
+    if (hasPart && !hasSeries) bad('part needs a series, e.g. series: cymraeg-byw');
+    if (meta.part_label !== undefined && !hasSeries) {
+      out.push({ severity: 'warn', message: 'part_label is only used when the article belongs to a series' });
+    }
     if (typeof meta.audio === 'string' && (/[\\/]/.test(meta.audio) || meta.audio.startsWith('.'))) {
       bad(`audio "${meta.audio}" must be a plain filename inside the article folder`);
+    }
+    return out;
+  }
+
+  /** Validation for a series file's frontmatter (content/series/<slug>.md). Returns [{severity, message}]. */
+  function validateSeriesMeta(meta) {
+    const out = [];
+    const bad = (message) => out.push({ severity: 'error', message });
+    for (const key of Object.keys(meta)) {
+      if (!SERIES_KEYS.includes(key)) out.push({ severity: 'warn', message: `unknown series field "${key}"` });
+    }
+    if (!meta.title || typeof meta.title !== 'string') bad('missing required field "title" (the series name shown to readers)');
+    if (meta.url !== undefined && meta.url !== '' && !/^https?:\/\/\S+$/i.test(String(meta.url))) {
+      bad(`url "${meta.url}" must start with http:// or https://`);
+    }
+    return out;
+  }
+
+  /**
+   * Cross-article series checks, shared by the build and the linter.
+   * chapters: [{slug, series, part, draft}] for every article folder (drafts included);
+   * seriesFiles: slugs that have a content/series/<slug>.md. Returns [{severity, where, message}].
+   */
+  function checkSeriesSet(chapters, seriesFiles) {
+    const out = [];
+    const groups = new Map();
+    for (const c of chapters) {
+      if (!c.series) continue;
+      if (!groups.has(c.series)) groups.set(c.series, []);
+      groups.get(c.series).push(c);
+    }
+    const files = new Set(seriesFiles);
+    for (const [slug, list] of groups) {
+      const pub = list.filter((c) => !c.draft).sort((x, y) => x.part - y.part || x.slug.localeCompare(y.slug));
+      for (let i = 1; i < pub.length; i++) {
+        if (pub[i].part === pub[i - 1].part) {
+          out.push({ severity: 'error', where: `content/articles/${pub[i].slug}/article.md`, message: `part ${pub[i].part} of series "${slug}" is also used by "${pub[i - 1].slug}"; each chapter needs its own part number` });
+        }
+      }
+      if (pub.length) {
+        const have = new Set(pub.map((c) => c.part));
+        const draftParts = list.filter((c) => c.draft).map((c) => c.part);
+        const missing = [];
+        for (let n = pub[0].part; n <= pub[pub.length - 1].part; n++) if (!have.has(n)) missing.push(n);
+        if (missing.length) {
+          const drafted = missing.filter((n) => draftParts.includes(n));
+          out.push({ severity: 'warn', where: `series "${slug}"`, message: `no chapter for part ${missing.join(', ')}${drafted.length ? ` (part ${drafted.join(', ')} ${drafted.length === 1 ? 'is a draft' : 'are drafts'})` : ''}; readers will see the gap` });
+        }
+        if (pub.length === 1 && !files.has(slug)) {
+          out.push({ severity: 'warn', where: `series "${slug}"`, message: `has a single chapter ("${pub[0].slug}") and no content/series/${slug}.md; a typo in "series:"?` });
+        }
+      }
+    }
+    for (const slug of files) {
+      const hasPublished = (groups.get(slug) || []).some((c) => !c.draft);
+      if (!hasPublished) {
+        out.push({ severity: 'warn', where: `content/series/${slug}.md`, message: `no published chapter belongs to this series; chapters need "series: ${slug}" and a "part:" in their frontmatter` });
+      }
     }
     return out;
   }
@@ -457,7 +532,7 @@
   }
 
   return {
-    LEVELS, LEVEL_IDS, DIALECTS, KNOWN_KEYS, MAX_SEGMENT_CHARS, TAGS, GENDER_TAGS,
-    normalise, parseFrontmatter, parseEntry, parseInline, parseBlocks, plainText, isHeading, validateMeta, scanBody, analyse,
+    LEVELS, LEVEL_IDS, DIALECTS, KNOWN_KEYS, SERIES_KEYS, SLUG_RE, MAX_SEGMENT_CHARS, TAGS, GENDER_TAGS,
+    normalise, parseFrontmatter, parseEntry, parseInline, parseBlocks, plainText, isHeading, validateMeta, validateSeriesMeta, checkSeriesSet, scanBody, analyse,
   };
 }));

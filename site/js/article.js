@@ -2,6 +2,7 @@
 import { initPlayer } from './player.js';
 import { initTooltips } from './tooltip.js';
 import { store } from './util.js';
+import { readSet, setRead } from './progress.js';
 
 const text = document.getElementById('text');
 const audio = document.getElementById('audio');
@@ -22,6 +23,21 @@ const player = audio
     fallbackDuration: Number(document.body.dataset.duration) || 0,
   })
   : null;
+
+// Chapters of a series: mark as read (kept in this browser only; also set when the audio ends)
+const markBtn = document.getElementById('mark-read');
+if (markBtn) {
+  const slug = document.body.dataset.slug;
+  const paint = (on) => markBtn.setAttribute('aria-pressed', String(on));
+  markBtn.hidden = false;
+  paint(readSet().has(slug));
+  markBtn.addEventListener('click', () => {
+    const on = markBtn.getAttribute('aria-pressed') !== 'true';
+    setRead(slug, on);
+    paint(on);
+  });
+  if (audio) audio.addEventListener('ended', () => { setRead(slug, true); paint(true); });
+}
 
 // English toggle (remembered across articles)
 const enBtn = document.getElementById('en-toggle');

@@ -17,12 +17,13 @@ There is no manual build step: `.github/workflows/deploy.yml` runs `node scripts
 | Path | Purpose |
 |---|---|
 | `content/articles/<slug>/` | Source of truth: `article.md`, `audio.mp3`, optional `article.en.md`, `timings.json` |
+| `content/series/<name>.md` | Optional page for a series (a book or course whose chapters are articles linked by `series:` and `part:`) |
 | `site/` | Home and article templates, CSS, vanilla JS (no dependencies, all URLs relative) |
 | `scripts/build.mjs` | Validate, render, write `data/index.json`, copy assets (Node 20+, no npm deps) |
 | `tools/editor.html` | **Article editor**: build an article from Welsh/English sentence rows, with a tooltip builder, live preview, checks and a zip download (`tools/editor-core.js` holds its logic, `tools/render-core.js` the markup shared with the build) |
 | `tools/sync-tool.html` | Tap-along generator for `timings.json` |
 | `tools/check.html`, `scripts/lint.mjs` | Format checker for `article.md` / `article.en.md` (browser and CLI, shared rules in `tools/lint-core.js`) |
-| `tests/` | `node --test tests/*.test.mjs` covers the linter, the editor logic and the zip writer |
+| `tests/` | `node --test tests/*.test.mjs` covers the linter, the editor, series and the zip writer; they use their own fixtures, never the live content |
 | `docs/AUTHORING.md` | How to add an article |
 
 ## Local preview

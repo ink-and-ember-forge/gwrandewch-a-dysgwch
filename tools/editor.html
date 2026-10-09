@@ -158,6 +158,10 @@
           <label class="wide">Summary (one or two sentences, shown on the card) <textarea id="m-summary" lang="en" rows="2"></textarea></label>
           <label>Topics (comma separated, lowercase) <input type="text" id="m-topics" placeholder="food, shopping" autocomplete="off"></label>
           <label>Dialect <select id="m-dialect"><option value="">Not stated</option><option value="north">North</option><option value="south">South</option><option value="neutral">Neutral</option></select></label>
+          <label>Series (if this is a chapter) <input type="text" id="m-series" list="series-list" placeholder="cymraeg-byw" autocomplete="off" spellcheck="false"></label>
+          <label>Part number in the series <input type="number" id="m-part" min="1" step="1" inputmode="numeric"></label>
+          <label>Chapter label (optional, e.g. “Uned 3”) <input type="text" id="m-part_label" autocomplete="off"></label>
+          <datalist id="series-list"></datalist>
           <label>Narrator <input type="text" id="m-narrator" autocomplete="off"></label>
           <label>Source (if not original) <input type="text" id="m-source" autocomplete="off"></label>
           <label>Licence <input type="text" id="m-licence" autocomplete="off"></label>
@@ -173,6 +177,26 @@
           <label class="wide ed-inline" style="display:flex;color:var(--ink)"><input type="checkbox" id="m-draft"> Draft (keep this article off the live site)</label>
         </div>
         <ul class="ed-msgs" id="m-msgs"></ul>
+        <details id="d-series" style="margin-top:.8rem">
+          <summary style="cursor:pointer;font-weight:600">Series page (optional): the book or course these chapters belong to</summary>
+          <p class="ed-hint">One small file per series, saved as <code>content/series/&lt;series&gt;.md</code>, gives the series its title, description and book credit. Without it the series is still linked, titled from its folder name. Download it once; it is remembered here so later chapters can reuse it.</p>
+          <div class="ed-form">
+            <label>Series title <input type="text" id="s-title" lang="cy" autocomplete="off"></label>
+            <label>Title in English <input type="text" id="s-title_en" lang="en" autocomplete="off"></label>
+            <label class="wide">Description <textarea id="s-summary" lang="en" rows="2"></textarea></label>
+            <label>Author <input type="text" id="s-author" autocomplete="off"></label>
+            <label>Publisher <input type="text" id="s-publisher" autocomplete="off"></label>
+            <label>Edition <input type="text" id="s-edition" autocomplete="off"></label>
+            <label>Licence <input type="text" id="s-licence" autocomplete="off"></label>
+            <label class="wide">Link to the book <input type="text" id="s-url" placeholder="https://" autocomplete="off" spellcheck="false"></label>
+          </div>
+          <ul class="ed-msgs" id="s-msgs"></ul>
+          <div class="ed-inline" style="margin-top:.6rem">
+            <button type="button" class="ed-btn" id="b-series-dl">Download series file</button>
+            <label class="ed-btn" for="f-series" style="display:inline-flex;align-items:center">Open series file…</label>
+            <input type="file" id="f-series" accept=".md,text/markdown,text/plain" hidden>
+          </div>
+        </details>
       </details>
 
       <section class="ed-card" style="margin-top:1rem" aria-labelledby="h-sent">
@@ -309,8 +333,9 @@
   let timer = 0;
   let saveTimer = 0;
   let pendingSel = null;
+  let sm = E.newSeriesMeta(); // the series page (content/series/<series>.md), if the author fills it in
 
-  const snapshot = () => JSON.stringify({ meta, items, slug, slugAuto });
+  const snapshot = () => JSON.stringify({ meta, items, slug, slugAuto, sm });
   function pushUndo() {
     undoStack.push(snapshot());
     if (undoStack.length > 60) undoStack.shift();
@@ -322,6 +347,7 @@
     items = s.items && s.items.length ? s.items : [E.newItem()];
     slug = s.slug || '';
     slugAuto = s.slugAuto !== false;
+    sm = Object.assign(E.newSeriesMeta(), s.sm || {});
   }
   function changed() { dirty = true; schedule(); }
   function schedule() { clearTimeout(timer); timer = setTimeout(refresh, 120); }
@@ -337,7 +363,9 @@
   }
 
   // ------------------------------------------------------------- details
-  const FIELDS = ['title', 'title_en', 'date', 'summary', 'dialect', 'narrator', 'source', 'licence', 'audio'];
+  const FIELDS = ['title', 'title_en', 'date', 'summary', 'dialect', 'series', 'part', 'part_label', 'narrator', 'source', 'licence', 'audio'];
+  const SERIES_FIELDS = ['title', 'title_en', 'summary', 'author', 'publisher', 'edition', 'licence', 'url'];
+  const SERIES_KEY = 'gad-editor-series';
   function fillLevelSelect() {
     const sel = $('m-level');
     sel.replaceChildren(new Option('Choose a level…', ''));
@@ -349,6 +377,23 @@
     $('m-topics').value = (meta.topics || []).join(', ');
     $('m-draft').checked = !!meta.draft;
     $('m-slug').value = slug;
+    syncSeriesForm();
+  }
+  function syncSeriesForm() {
+    for (const k of SERIES_FIELDS) $(`s-${k}`).value = sm[k] || '';
+  }
+  // Series pages the author has filled in before, so a later chapter reuses the exact slug and details.
+  function knownSeries() {
+    try { return JSON.parse(store.get(SERIES_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function rememberSeries() {
+    if (!meta.series || !sm.title.trim()) return;
+    const all = knownSeries();
+    all[meta.series] = sm;
+    store.set(SERIES_KEY, JSON.stringify(all));
+  }
+  function fillSeriesList() {
+    $('series-list').replaceChildren(...Object.keys(knownSeries()).sort().map((k) => new Option(knownSeries()[k].title || k, k)));
   }
   function bindForm() {
     for (const k of FIELDS) {
@@ -358,6 +403,27 @@
         changed();
       });
     }
+    $('m-series').addEventListener('input', () => {
+      // choosing a series seen before fills in its page details
+      const known = knownSeries()[meta.series];
+      if (known && !SERIES_FIELDS.some((k) => (sm[k] || '').trim())) { sm = Object.assign(E.newSeriesMeta(), known); syncSeriesForm(); }
+    });
+    for (const k of SERIES_FIELDS) {
+      $(`s-${k}`).addEventListener('input', (e) => { sm[k] = e.target.value; rememberSeries(); changed(); });
+    }
+    $('b-series-dl').addEventListener('click', downloadSeries);
+    $('f-series').addEventListener('change', async (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const parsed = E.parseSeriesFile(await f.text());
+      sm = parsed.meta;
+      if (!meta.series && /^[a-z0-9-]+\.md$/i.test(f.name)) { meta.series = f.name.replace(/\.md$/i, '').toLowerCase(); $('m-series').value = meta.series; }
+      syncSeriesForm();
+      rememberSeries();
+      changed();
+      toast(parsed.problems.length ? `Opened, with notes: ${parsed.problems.join(' ')}` : 'Series page opened.', parsed.problems.length > 0);
+    });
     $('m-level').addEventListener('change', (e) => { meta.level = e.target.value; changed(); });
     $('m-draft').addEventListener('change', (e) => { meta.draft = e.target.checked; changed(); });
     $('m-topics').addEventListener('input', (e) => {
@@ -915,11 +981,15 @@
 
     // details messages, slug
     $('m-msgs').replaceChildren(...general.filter((m) => m.file === 'article.md' && m.line < lastOut.bodyStartLine).map((m) => { const x = document.createElement('li'); x.className = m.severity; x.textContent = m.message; return x; }));
-    const sm = $('m-slug-msg');
-    if (!slug) sm.textContent = 'Needed: add a title and the name is generated for you.';
-    else if (!validSlug()) sm.textContent = 'Use lowercase letters, digits and hyphens only (no spaces or accents).';
-    else sm.textContent = `Will be saved as content/articles/${slug}/`;
-    sm.style.color = slug && !validSlug() ? 'var(--red)' : '';
+    const slugMsg = $('m-slug-msg');
+    if (!slug) slugMsg.textContent = 'Needed: add a title and the name is generated for you.';
+    else if (!validSlug()) slugMsg.textContent = 'Use lowercase letters, digits and hyphens only (no spaces or accents).';
+    else slugMsg.textContent = `Will be saved as content/articles/${slug}/`;
+    slugMsg.style.color = slug && !validSlug() ? 'var(--red)' : '';
+
+    // series page form: only worth nagging about once a series title has been started
+    const sMsgs = meta.series && SERIES_FIELDS.some((k) => (sm[k] || '').trim()) ? L.validateSeriesMeta(sm) : [];
+    $('s-msgs').replaceChildren(...sMsgs.map((m) => { const x = document.createElement('li'); x.className = m.severity; x.textContent = m.message; return x; }));
 
     // summary pill + checks list
     const counts = { error: 0, warn: 0, info: 0 };
@@ -982,6 +1052,7 @@
     host.className = `page-article${previewEn ? ' show-en' : ''}`;
     host.innerHTML = `
       <header class="article-head"><div class="wrap">
+        ${meta.series ? `<p class="series-banner"><a href="#" onclick="return false">${R.esc(sm.title.trim() || meta.series)}</a><span aria-hidden="true"> · </span><strong>${R.esc(R.chapterLabel(meta.part || '?', meta.part_label))}</strong></p>` : ''}
         <h1 lang="cy">${R.esc(meta.title || 'Untitled')}</h1>
         ${meta.title_en ? `<p class="subtitle" lang="en">${R.esc(meta.title_en)}</p>` : ''}
         <div class="badges">${badges.join('')}</div>
@@ -1063,6 +1134,14 @@
       !t ? li('no', 'timings.json · none (make it with the sync tool, optional)')
         : t.ok ? li('ok', `timings.json · ${t.n} entries, matches the sentences`)
           : li('bad', `timings.json · ${t.n} entries but ${segCount()} sentences: left out of the zip, re-sync`),
+      meta.series
+        ? li('ok', `Chapter ${R.chapterLabel(meta.part || '?', meta.part_label)} of the series “${meta.series}”`)
+        : li('no', 'Not part of a series (optional)'),
+      meta.series
+        ? (sm.title.trim()
+          ? li('ok', `Series page: download it in Details and save as content/series/${meta.series}.md (once per series)`)
+          : li('no', `No series page yet: “${meta.series}” will be titled from its name`))
+        : li('no', 'Series page: not needed'),
       audioFile ? li('ok', `${meta.audio || 'audio.mp3'} · ${(audioFile.size / 1048576).toFixed(1)} MB${audioFile.size > 10485760 ? ' (over 10 MB; consider 64 kbps mono)' : ''}${audioFile.name !== meta.audio ? ` (from ${audioFile.name})` : ''}`)
         : li('no', `${meta.audio || 'audio.mp3'} · not attached (the build needs it in the folder)`),
     );
@@ -1077,6 +1156,18 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  function downloadSeries() {
+    const problems = [];
+    if (!meta.series) problems.push('Set the series name in Details first (for example cymraeg-byw).');
+    else if (!L.SLUG_RE.test(meta.series)) problems.push('The series name must be lowercase letters, digits and hyphens.');
+    for (const p of L.validateSeriesMeta(sm)) if (p.severity === 'error') problems.push(p.message);
+    if (problems.length) { toast(problems.join(' '), true); return; }
+    rememberSeries();
+    fillSeriesList();
+    download(`${meta.series}.md`, E.seriesFileText(sm), 'text/markdown');
+    toast(`Downloaded ${meta.series}.md. Save it in content/series/.`);
   }
 
   function errorsNow() {
@@ -1123,6 +1214,7 @@
     const parsed = E.parseArticle({ md: await md.text(), en: en ? await en.text() : '' });
     pushUndo();
     meta = parsed.meta;
+    sm = Object.assign(E.newSeriesMeta(), knownSeries()[meta.series] || {});
     items = parsed.items;
     timings = null;
     if (tm) { try { timings = JSON.parse(await tm.text()); } catch (e) { toast('timings.json is not valid JSON; ignored.', true); } }
@@ -1141,6 +1233,7 @@
     if (dirty && !confirm('Start a new article? (You can undo this.)')) return;
     pushUndo();
     meta = E.newMeta();
+    sm = E.newSeriesMeta();
     items = [E.newItem()];
     slug = '';
     slugAuto = true;
@@ -1197,6 +1290,7 @@
 
   function init() {
     fillLevelSelect();
+    fillSeriesList();
     bindForm();
     bindRows();
     bindBuilder();
