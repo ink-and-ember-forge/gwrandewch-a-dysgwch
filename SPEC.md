@@ -253,7 +253,7 @@ Sorting: newest `date` first, ties broken by title.
 ### 7.1 Home page
 - Header with site title and a one-line description
 - **Search box:** client-side, over title, English title, summary and body text. Matching is **diacritic- and case-insensitive**, so `wy` finds *ŵy* and `cymraeg` finds *Cymraeg*.
-- **Filter chips:** series, type, level and topic (each multi-select). Active filters are reflected in the URL (`?type=song&level=sylfaen&topic=food&q=bara`) so views are shareable and the back button works.
+- **Filter chips:** series, type, level and topic (each multi-select), tucked behind a **Filters** button so they take no space by default. The button shows how many filters are active, and the panel opens by itself when the page loads with filters already in the URL. Active filters are reflected in the URL (`?type=song&level=sylfaen&topic=food&q=bara`) so views are shareable and the back button works.
 - **Article cards:** title, English title, type badge, level badge, topic tags, summary, duration, small icons for "has English" and "synced". Newest first.
 - Empty-state message when filters match nothing.
 

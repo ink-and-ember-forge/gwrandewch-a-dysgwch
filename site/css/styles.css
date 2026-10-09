@@ -110,6 +110,24 @@ kbd {
 /* ------------------------------------------------------- filters / cards */
 
 .controls { padding: 1.5rem 0 .5rem; display: grid; gap: .9rem; }
+.search-row { display: flex; gap: .6rem; align-items: stretch; }
+.search-row .search { flex: 1; min-width: 0; }
+.filters-toggle {
+  display: inline-flex; align-items: center; gap: .5rem; padding: 0 1rem; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; white-space: nowrap;
+}
+.filters-toggle[hidden] { display: none; }
+.filters-toggle:hover { border-color: var(--accent); }
+.filters-toggle[aria-expanded="true"] { border-color: var(--accent); }
+.ft-count {
+  min-width: 1.4rem; height: 1.4rem; padding: 0 .35rem; border-radius: 999px; display: inline-grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font-size: .8rem;
+}
+.ft-count[hidden] { display: none; }
+.ft-caret { width: .55rem; height: .55rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-.1rem); transition: transform .15s; }
+.filters-toggle[aria-expanded="true"] .ft-caret { transform: rotate(-135deg) translateY(-.1rem); }
+.filters-panel { display: grid; gap: .9rem; padding: .9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.filters-panel[hidden] { display: none; }
 .search input {
   width: 100%; padding: .8rem 1rem; border-radius: 12px; border: 1px solid var(--line);
   background: var(--surface); font-size: 1rem;
