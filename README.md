@@ -31,7 +31,3 @@ There is no manual build step: `.github/workflows/deploy.yml` runs `node scripts
 node scripts/build.mjs
 python3 -m http.server -d dist 8000   # http://localhost:8000
 ```
-
-## Sample content
-
-The two articles in `content/articles/` are placeholders with **silent audio** and unreviewed Welsh. Replace or delete them before launch.
