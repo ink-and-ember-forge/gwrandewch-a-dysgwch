@@ -71,6 +71,13 @@
     return `<span class="badge badge-level" data-level="${esc(level)}"><span class="dots" aria-hidden="true">${dots}</span> ${esc(cap(level))} <span class="badge-en" lang="en">${en}</span></span>`;
   }
 
+  /** The article type as a badge, e.g. "Short story". Empty if the id is unknown. */
+  function typeBadge(type) {
+    const t = lint.TYPES.find((x) => x[0] === type);
+    return t ? `<span class="badge badge-type" data-type="${esc(type)}">${esc(t[1])}</span>` : '';
+  }
+  const typeLabel = (type) => { const t = lint.TYPES.find((x) => x[0] === type); return t ? t[1] : ''; };
+
   // ----------------------------------------------------- tooltip (DOM)
 
   function chip(doc, label, def, title) {
@@ -142,5 +149,5 @@
     }
   }
 
-  return { esc, cap, chapterLabel, TAGS, renderInline, plainInline, renderBody, levelBadge, entriesOf, fillTooltip };
+  return { esc, cap, chapterLabel, TAGS, renderInline, plainInline, renderBody, levelBadge, typeBadge, typeLabel, entriesOf, fillTooltip };
 }));

@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync, existsSync, rmSync } from 'node:fs';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { readFileSync, existsSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -11,32 +10,12 @@ const L = require('../tools/lint-core.js');
 const R = require('../tools/render-core.js');
 const E = require('../tools/editor-core.js');
 
-const REPO = resolve(new URL('..', import.meta.url).pathname);
-const MP3 = Buffer.concat(Array.from({ length: 400 }, () => Buffer.concat([Buffer.from([0xff, 0xfb, 0x50, 0xc0]), Buffer.alloc(204)])));
+import { REPO, site, build, page } from './helpers.mjs';
 
-// A throwaway site: the real templates and tools, with content made here.
-function site(articles, series = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'gad-'));
-  symlinkSync(join(REPO, 'site'), join(root, 'site'));
-  symlinkSync(join(REPO, 'tools'), join(root, 'tools'));
-  for (const [slug, a] of Object.entries(articles)) {
-    const dir = join(root, 'content', 'articles', slug);
-    mkdirSync(dir, { recursive: true });
-    const fm = { title: slug.toUpperCase(), level: 'sylfaen', date: '2026-01-01', summary: 'S', audio: 'audio.mp3', ...a.fm };
-    const head = Object.entries(fm).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}: ${v}`).join('\n');
-    writeFileSync(join(dir, 'article.md'), `---\n${head}\n---\n\n${a.body || 'Un {{gair|word}}.'}\n`);
-    writeFileSync(join(dir, 'audio.mp3'), MP3);
-  }
-  if (Object.keys(series).length) mkdirSync(join(root, 'content', 'series'), { recursive: true });
-  for (const [slug, text] of Object.entries(series)) writeFileSync(join(root, 'content', 'series', `${slug}.md`), text);
-  return root;
-}
-const build = (root) => spawnSync('node', [join(REPO, 'scripts', 'build.mjs')], { env: { ...process.env, GAD_ROOT: root }, encoding: 'utf8' });
-const page = (root, ...p) => readFileSync(join(root, 'dist', ...p), 'utf8');
 const chapter = (n, extra = {}) => ({ fm: { series: 'book', part: n, ...extra } });
 
 test('validateMeta: series needs a part, part needs a series, both well formed', () => {
-  const m = (x) => L.validateMeta({ title: 't', level: 'uwch', date: '2026-01-01', summary: 's', ...x }).map((v) => `${v.severity}:${v.message}`);
+  const m = (x) => L.validateMeta({ title: 't', level: 'uwch', type: 'news', date: '2026-01-01', summary: 's', ...x }).map((v) => `${v.severity}:${v.message}`);
   assert.deepEqual(m({ series: 'cymraeg-byw', part: '3', part_label: 'Uned 3' }), []);
   assert.ok(m({ series: 'cymraeg-byw' }).some((x) => /needs a part number/.test(x)));
   assert.ok(m({ part: '2' }).some((x) => /part needs a series/.test(x)));
@@ -72,7 +51,7 @@ test('chapterLabel prefers the author\'s label', () => {
 });
 
 test('editor: series fields and the series file round-trip', () => {
-  const meta = Object.assign(E.newMeta(), { title: 'T', level: 'sylfaen', summary: 'S', date: '2026-01-01', series: 'cymraeg-byw', part: '3', part_label: 'Uned 3' });
+  const meta = Object.assign(E.newMeta(), { title: 'T', level: 'sylfaen', type: 'news', summary: 'S', date: '2026-01-01', series: 'cymraeg-byw', part: '3', part_label: 'Uned 3' });
   const md = E.serialize(meta, [{ kind: 'seg', cy: 'Un.', en: 'One.', breakBefore: false }]).md;
   assert.match(md, /series: cymraeg-byw\npart: 3\npart_label: Uned 3\n/);
   const back = E.parseArticle({ md }).meta;

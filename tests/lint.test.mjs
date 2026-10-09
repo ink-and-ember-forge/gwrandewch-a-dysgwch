@@ -5,7 +5,8 @@ import { createRequire } from 'node:module';
 
 const { analyse, parseInline, parseEntry } = createRequire(import.meta.url)('../tools/lint-core.js');
 
-const FM = '---\ntitle: T\nlevel: sylfaen\ndate: 2026-01-01\nsummary: S\n---\n\n';
+const FM = '---\ntitle: T\nlevel: sylfaen\ntype: news\ndate: 2026-01-01\nsummary: S\n---\n\n';
+const B = FM.split('\n').length; // line number of the first body line, whatever the frontmatter holds
 const run = (cy, en) => analyse({ md: FM + cy, en });
 const rules = (r, file) => r.issues.filter((i) => !file || i.file === file).map((i) => i.rule);
 const has = (r, rule, line) => r.issues.some((i) => i.rule === rule && (line === undefined || i.line === line));
@@ -27,7 +28,7 @@ test('good text produces no issues', () => {
 
 test('line numbers are physical file lines', () => {
   const r = run('Un.\nDwy  fawr.\n');
-  assert.ok(has(r, 'double-space', 9));
+  assert.ok(has(r, 'double-space', B + 1));
 });
 
 test('whitespace problems', () => {
@@ -53,7 +54,7 @@ test('decomposed accents are flagged', () => {
 test('mixed apostrophes flag the minority lines only', () => {
   const r = run("Hi'n dda.\nTi'n dda.\nFe’i gwelais.\n");
   const lines = r.issues.filter((i) => i.rule === 'apostrophe-mixed').map((i) => i.line);
-  assert.deepEqual(lines, [10]);
+  assert.deepEqual(lines, [B + 2]);
 });
 
 test('apostrophe style differing between files is a note', () => {
@@ -77,7 +78,7 @@ test('"## Heading" is accepted and is not a sentence', () => {
 
 test('hard-wrapped sentences and long lines', () => {
   const r = run('Mae hon yn frawddeg hir iawn sy wedi\nei thorri dros ddwy linell.\n');
-  assert.ok(has(r, 'hard-wrap', 8));
+  assert.ok(has(r, 'hard-wrap', B));
   assert.ok(has(run(`${'gair '.repeat(60)}.\n`), 'long-line'));
 });
 
@@ -91,7 +92,7 @@ test('multiple sentences on a line are a note, abbreviations are not', () => {
 test('gloss syntax errors carry a line number', () => {
   const r = run('Un {{a|}} dau.\nTri {{b\n');
   assert.ok(r.issues.filter((i) => i.rule === 'gloss' && i.severity === 'error').length >= 2);
-  assert.ok(has(r, 'gloss', 8) && has(r, 'gloss', 9));
+  assert.ok(has(r, 'gloss', B) && has(r, 'gloss', B + 1));
 });
 
 test('glosses in the English file and frontmatter in the English file', () => {
@@ -125,9 +126,10 @@ test('paragraph and heading structure should mirror', () => {
 });
 
 test('frontmatter errors are reported with the shared rules', () => {
-  const r = analyse({ md: '---\ntitle: T\nlevel: nope\ndate: 2026-13-45\n---\nUn.\n' });
+  const r = analyse({ md: '---\ntitle: T\nlevel: nope\ntype: poetry\ndate: 2026-13-45\n---\nUn.\n' });
   assert.ok(r.issues.some((i) => i.rule === 'frontmatter' && /level/.test(i.message)));
   assert.ok(r.issues.some((i) => i.rule === 'frontmatter' && /date/.test(i.message)));
+  assert.ok(r.issues.some((i) => i.rule === 'frontmatter' && /type "poetry" is not one of/.test(i.message)));
   assert.ok(r.issues.some((i) => i.rule === 'frontmatter' && /summary/.test(i.message)));
   assert.ok(analyse({ md: 'Un.\n' }).issues.some((i) => i.rule === 'frontmatter'));
 });
@@ -135,7 +137,7 @@ test('frontmatter errors are reported with the shared rules', () => {
 test('CRLF and BOM are notes, and do not shift line numbers', () => {
   const r = analyse({ md: `﻿${FM.replace(/\n/g, '\r\n')}Un.\r\nDwy  fawr.\r\n` });
   assert.ok(r.issues.some((i) => i.rule === 'crlf' && i.severity === 'info'));
-  assert.ok(has(r, 'double-space', 9));
+  assert.ok(has(r, 'double-space', B + 1));
 });
 
 const gloss = (src) => {

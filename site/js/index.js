@@ -5,7 +5,7 @@ import { fold, cap, fmtTime, readQuery, writeQuery } from './util.js';
 import { readSet } from './progress.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { q: '', levels: new Set(), topics: new Set(), series: new Set() };
+const state = { q: '', levels: new Set(), topics: new Set(), series: new Set(), types: new Set() };
 let data = null;
 
 function h(tag, props = {}, ...kids) {
@@ -22,10 +22,12 @@ function h(tag, props = {}, ...kids) {
 
 const levelInfo = (id) => data.levels.find((l) => l.id === id);
 const levelRank = (id) => data.levels.findIndex((l) => l.id === id) + 1;
+const typeLabel = (id) => (data.types.find((t) => t.id === id) || {}).label || '';
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function matches(a, terms) {
   if (state.series.size && !state.series.has(a.series)) return false;
+  if (state.types.size && !state.types.has(a.type)) return false;
   if (state.levels.size && !state.levels.has(a.level)) return false;
   if (state.topics.size && !a.topics.some((t) => state.topics.has(t))) return false;
   return terms.every((t) => a.search.includes(t));
@@ -42,6 +44,7 @@ function levelBadge(level) {
 
 function renderCard(a) {
   const meta = h('div', { class: 'card-meta' },
+    a.type && h('span', { class: 'badge badge-type', text: typeLabel(a.type) }),
     levelBadge(a.level),
     a.dialect && h('span', { text: `${cap(a.dialect)} dialect` }),
     a.duration && h('span', { text: fmtTime(a.duration) }),
@@ -66,6 +69,7 @@ function renderSeriesCard(s, chapters, filtering, read) {
   const levelText = first === last ? cap(first) : `${cap(first)} – ${cap(last)}`;
   const done = s.chapters.filter((c) => read.has(c.slug)).length;
   const meta = h('div', { class: 'card-meta' },
+    s.types.length > 0 && h('span', { class: 'badge badge-type', text: s.types.map(typeLabel).join(' · ') }),
     h('span', { class: 'badge badge-level', text: levelText }),
     h('span', { text: plural(s.count, 'chapter') }),
     s.duration && h('span', { text: fmtTime(s.duration) }),
@@ -94,7 +98,7 @@ function renderSeriesCard(s, chapters, filtering, read) {
 
 function render() {
   const terms = fold(state.q).split(/\s+/).filter(Boolean);
-  const filtering = terms.length > 0 || state.levels.size > 0 || state.topics.size > 0 || state.series.size > 0;
+  const filtering = terms.length > 0 || state.levels.size > 0 || state.topics.size > 0 || state.series.size > 0 || state.types.size > 0;
   const matched = data.articles.filter((a) => matches(a, terms));
   const read = readSet();
 
@@ -120,16 +124,16 @@ function render() {
   $('count').textContent = parts.join(' · ');
   $('clear').hidden = !filtering;
   for (const chip of document.querySelectorAll('.chip')) {
-    const set = state[chip.dataset.kind === 'level' ? 'levels' : chip.dataset.kind === 'topic' ? 'topics' : 'series'];
+    const set = state[SET_FOR[chip.dataset.kind]];
     chip.setAttribute('aria-pressed', String(set.has(chip.dataset.value)));
   }
 }
 
 function persist(push) {
-  writeQuery({ q: state.q, levels: [...state.levels], topics: [...state.topics], series: [...state.series] }, push);
+  writeQuery({ q: state.q, levels: [...state.levels], topics: [...state.topics], series: [...state.series], types: [...state.types] }, push);
 }
 
-const SET_FOR = { level: 'levels', topic: 'topics', series: 'series' };
+const SET_FOR = { level: 'levels', topic: 'topics', series: 'series', type: 'types' };
 
 function buildChips(container, kind, label, entries) {
   if (!entries.length) return;
@@ -153,10 +157,12 @@ function applyQuery() {
   const levelIds = new Set(data.levels.map((l) => l.id));
   const topicIds = new Set(data.articles.flatMap((a) => a.topics));
   const seriesIds = new Set(data.series.map((s) => s.slug));
+  const typeIds = new Set(data.types.map((t) => t.id));
   state.q = q.q;
   state.levels = new Set(q.levels.filter((l) => levelIds.has(l)));
   state.topics = new Set(q.topics.filter((t) => topicIds.has(t)));
   state.series = new Set(q.series.filter((s) => seriesIds.has(s)));
+  state.types = new Set(q.types.filter((t) => typeIds.has(t)));
   $('q').value = state.q;
 }
 
@@ -166,6 +172,7 @@ async function main() {
     if (!res.ok) throw new Error(res.statusText);
     data = await res.json();
     data.series = data.series || [];
+    data.types = data.types || [];
   } catch {
     $('error').hidden = false;
     return;
@@ -173,12 +180,16 @@ async function main() {
 
   const levelCounts = new Map();
   const topicCounts = new Map();
+  const typeCounts = new Map();
   for (const a of data.articles) {
     levelCounts.set(a.level, (levelCounts.get(a.level) || 0) + 1);
+    if (a.type) typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
     for (const t of a.topics) topicCounts.set(t, (topicCounts.get(t) || 0) + 1);
   }
   buildChips($('series-filters'), 'series', 'Series',
     data.series.map((s) => [s.slug, s.count, s.title]));
+  buildChips($('type-filters'), 'type', 'Type',
+    data.types.filter((t) => typeCounts.has(t.id)).map((t) => [t.id, typeCounts.get(t.id), t.label]));
   buildChips($('level-filters'), 'level', 'Level',
     data.levels.filter((l) => levelCounts.has(l.id)).map((l) => [l.id, levelCounts.get(l.id), cap(l.id)]));
   buildChips($('topic-filters'), 'topic', 'Topic',
@@ -189,7 +200,7 @@ async function main() {
 
   $('q').addEventListener('input', (e) => { state.q = e.target.value; persist(false); render(); });
   $('clear').addEventListener('click', () => {
-    state.q = ''; state.levels.clear(); state.topics.clear(); state.series.clear();
+    state.q = ''; state.levels.clear(); state.topics.clear(); state.series.clear(); state.types.clear();
     $('q').value = '';
     persist(true);
     render();
