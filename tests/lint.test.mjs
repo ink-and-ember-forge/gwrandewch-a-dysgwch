@@ -84,6 +84,8 @@ test('hard-wrapped sentences and long lines', () => {
 test('multiple sentences on a line are a note, abbreviations are not', () => {
   assert.ok(has(run('Helo. Sut wyt ti?\n'), 'multi-sentence'));
   assert.ok(!has(run('Dyma Dr. Jones yn siarad.\n'), 'multi-sentence'));
+  assert.ok(!has(run('Dyma J. Jones yn siarad.\n'), 'multi-sentence'));
+  assert.ok(has(run('Dw i eisiau gweld ti. Mae hi yma.\n'), 'multi-sentence'), 'a sentence ending in a short Welsh word still counts');
 });
 
 test('gloss syntax errors carry a line number', () => {

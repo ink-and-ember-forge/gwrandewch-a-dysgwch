@@ -88,19 +88,26 @@
     return { entry: { cy, tag, en } };
   }
 
-  /** Split one line into text and gloss parts; syntax problems are pushed to `problems`. */
+  /**
+   * Split one line into text and gloss parts; syntax problems are pushed to `problems`.
+   * Every part carries `start`/`end`: its span in `line` (raw markup), which the
+   * editor uses to wrap, replace and remove glosses without rewriting the rest.
+   */
   function parseInline(line, problems) {
     const parts = [];
     let buf = '';
+    let bufStart = 0;
     let i = 0;
-    const flush = () => { if (buf) { parts.push({ text: buf }); buf = ''; } };
+    const add = (ch, at) => { if (buf === '') bufStart = at; buf += ch; };
+    const flush = (at) => { if (buf) { parts.push({ text: buf, start: bufStart, end: at }); buf = ''; } };
     while (i < line.length) {
-      if (line.startsWith('\\{{', i)) { buf += '{{'; i += 3; continue; }
+      if (line.startsWith('\\{{', i)) { add('{{', i); i += 3; continue; }
       if (line.startsWith('{{', i)) {
         const end = line.indexOf('}}', i + 2);
         if (end < 0) {
           problems.push(`unclosed "{{" in: ${line}`);
-          buf += line.slice(i);
+          add(line.slice(i), i);
+          i = line.length;
           break;
         }
         const inner = line.slice(i + 2, end);
@@ -123,20 +130,41 @@
         if (f.length < 2) problems.push(`gloss "{{${inner}}}" needs a translation: {{word|translation}}`);
         else if (!surface) problems.push(`gloss with empty surface text: {{${inner}}}`);
         else if (!tip) problems.push(`gloss "${surface}" has an empty translation`);
-        flush();
-        parts.push({ surface, tip, note, entries });
+        flush(i);
+        parts.push({ surface, tip, note, entries, start: i, end: end + 2 });
         i = end + 2;
         continue;
       }
-      if (line.startsWith('}}', i)) { problems.push(`stray "}}" in: ${line}`); buf += '}}'; i += 2; continue; }
-      buf += line[i++];
+      if (line.startsWith('}}', i)) { problems.push(`stray "}}" in: ${line}`); add('}}', i); i += 2; continue; }
+      add(line[i], i);
+      i++;
     }
-    flush();
+    flush(i);
     return parts;
   }
 
   const plainText = (line) => parseInline(line, []).map((p) => (p.text !== undefined ? p.text : p.surface)).join('');
   const isHeading = (line) => line.startsWith('## ');
+
+  /**
+   * Parse the one-line-one-sentence body into blocks, shared by the build and the
+   * editor preview: {kind:'break'} | {kind:'h2', parts} | {kind:'seg', index, parts, raw}.
+   * Gloss syntax problems are pushed to `problems`.
+   */
+  function parseBlocks(body, problems) {
+    const blocks = [];
+    let index = 0;
+    for (const raw of body.split('\n')) {
+      const line = raw.trim();
+      if (!line) { blocks.push({ kind: 'break' }); continue; }
+      if (isHeading(line)) {
+        blocks.push({ kind: 'h2', parts: parseInline(line.slice(3).trim(), problems) });
+        continue;
+      }
+      blocks.push({ kind: 'seg', index: index++, parts: parseInline(line, problems), raw: line });
+    }
+    return { blocks, count: index };
+  }
 
   /** Frontmatter field validation shared with the build. Returns [{severity, message}]. */
   function validateMeta(meta) {
@@ -310,7 +338,7 @@
           let m;
           while ((m = re.exec(plain))) {
             const before = (plain.slice(0, m.index).match(/(\p{L}+)$/u) || [])[1] || '';
-            if (m[1] === '.' && (before.length <= 2 || ABBREVIATIONS.has(before.toLowerCase()))) continue;
+            if (m[1] === '.' && (/^\p{Lu}$/u.test(before) || ABBREVIATIONS.has(before.toLowerCase()))) continue;
             at('info', 'multi-sentence', 'More than one sentence on this line; each line should be a single sentence so audio and English line up.');
             break;
           }
@@ -430,6 +458,6 @@
 
   return {
     LEVELS, LEVEL_IDS, DIALECTS, KNOWN_KEYS, MAX_SEGMENT_CHARS, TAGS, GENDER_TAGS,
-    normalise, parseFrontmatter, parseEntry, parseInline, plainText, isHeading, validateMeta, scanBody, analyse,
+    normalise, parseFrontmatter, parseEntry, parseInline, parseBlocks, plainText, isHeading, validateMeta, scanBody, analyse,
   };
 }));

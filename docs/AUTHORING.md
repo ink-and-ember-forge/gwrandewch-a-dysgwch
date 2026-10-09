@@ -2,6 +2,18 @@
 
 Add a folder under `content/articles/`, push to `main`, and the site rebuilds itself. You never edit an index or any code.
 
+## The easy way: the article editor
+
+Open **`tools/editor.html`** (at `<site>/tools/editor.html`, or straight from your clone). Nothing is uploaded; it runs in your browser.
+
+1. **Details:** title, level, date, summary, topics. The folder name is generated from the title.
+2. **Sentences:** paste your Welsh (*Paste text…*) and it is split into one row per sentence, then paste the English the same way to fill the English column. Each row is a Welsh/English pair, so the two files cannot get out of step. Add, split (<kbd>Enter</kbd>), merge, move and delete rows; <kbd>¶</kbd> starts a new paragraph and <kbd>H</kbd> makes a `##` heading.
+3. **Tooltips:** select words in a Welsh sentence (drag or double-click) and press <kbd>G</kbd> or *Add tooltip*. The builder takes the bold translation, one line per word (Welsh forms, tag, English), and notes, with mutation shortcuts and a live preview of the tooltip. Click a dotted word to edit it.
+4. **Check:** the preview is the real article page (English toggle, tooltips), and the Checks panel runs the same rules as the build against the files it will write.
+5. **Download zip:** the article folder, ready to unzip into `content/articles/`. Attach the audio and it is included; *Open folder…* re-opens an existing article (keeping its `timings.json` and audio) to edit it. Your work is backed up in the browser as you go.
+
+Timings still come from the [sync tool](#4-timings-optional). The rest of this page describes the file format the editor writes, which you can also write by hand.
+
 ## 1. Create the folder
 
 The folder name is the URL slug: lowercase ASCII letters, digits and hyphens only, no diacritics (`diwrnod-yn-y-farchnad`).
