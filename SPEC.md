@@ -63,6 +63,11 @@ content/articles/<slug>/  ──►  scripts/build.mjs  ──►  dist/  ──
 ├── scripts/
 │   └── build.mjs                   # validate + render + index + copy
 ├── tools/
+│   ├── editor.html                 # article editor (standalone): rows, tooltip builder, preview, zip
+│   ├── editor-core.js              # editor logic (UMD, unit tested)
+│   ├── render-core.js              # markup + tooltip rendering shared by build, site and editor
+│   ├── lint-core.js                # parsing and format rules shared by build, linter and editor
+│   ├── check.html                  # paste-and-check format checker (standalone)
 │   └── sync-tool.html              # tap-along timing generator (standalone)
 ├── docs/
 │   └── AUTHORING.md                # how to add an article (1 page)
@@ -253,7 +258,20 @@ Sorting: newest `date` first, ties broken by title.
 
 ---
 
-## 8. Authoring support: sync tool
+## 8. Authoring support
+
+### 8.1 Article editor (`tools/editor.html`)
+A standalone, no-build page (opens locally or from Pages; no server, nothing uploaded) for creating and editing articles:
+- **Sentence rows:** each sentence is a Welsh/English pair, so alignment cannot break. Paste text to split into sentences, split/merge/move rows, paragraph breaks and `##` headings.
+- **Tooltip builder:** select words in the Welsh to build a gloss (translation, per-word entries with forms and tag, notes) with a live preview; click a gloss to edit or remove it.
+- **Details form** for the frontmatter, with the folder name generated from the title.
+- **Live preview** rendered with the site's own CSS and the same render code as the build (`tools/render-core.js`), and **checks** from the same rules as the build (`tools/lint-core.js`).
+- **Output:** a zip containing the correctly named article folder (`article.md`, `article.en.md`, `timings.json` if present and matching, and the audio if attached). Opening an existing article folder round-trips it. Drafts are backed up in the browser.
+
+### 8.2 Format checker (`tools/check.html`, `scripts/lint.mjs`)
+Report-only checks of hand-written `article.md` / `article.en.md` (alignment, whitespace, typography, stray markdown). The CLI is also run in CI.
+
+### 8.3 Sync tool (`tools/sync-tool.html`)
 
 Timing every sentence by hand is the most laborious part of authoring. `tools/sync-tool.html` is a standalone page (no build, opens locally or from Pages):
 

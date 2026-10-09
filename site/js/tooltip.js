@@ -4,54 +4,12 @@
 // A tooltip shows: the translation in bold, then one line per word entry
 // (Welsh forms + tag, English + derived tag), then any notes.
 
-// Welsh tag -> label, tooltip help, colour class. Gender tags also produce an
-// English (m)/(f) tag on the English side.
-const TAGS = {
-  eg: { cy: 'eg', title: 'enw gwrywaidd: masculine noun', cls: 'm', en: 'm', enTitle: 'masculine' },
-  eb: { cy: 'eb', title: 'enw benywaidd: feminine noun', cls: 'f', en: 'f', enTitle: 'feminine' },
-  egb: { cy: 'egb', title: 'enw gwrywaidd neu fenywaidd: masculine or feminine noun', cls: 'b', en: 'm/f', enTitle: 'masculine or feminine' },
-  adj: { cy: 'adj', title: 'ansoddair: adjective', cls: 't' },
-  verb: { cy: 'verb', title: 'berf / berfenw: verb', cls: 't' },
-  prep: { cy: 'prep', title: 'arddodiad: preposition', cls: 't' },
-  adv: { cy: 'adv', title: 'adferf: adverb', cls: 't' },
-  conj: { cy: 'conj', title: 'cysylltair: conjunction', cls: 't' },
-  pron: { cy: 'pron', title: 'rhagenw: pronoun', cls: 't' },
-};
-
-function chip(label, def, title) {
-  const el = document.createElement('span');
-  el.className = `tag tag-${def.cls}`;
-  el.textContent = `(${label})`;
-  el.title = title;
-  el.setAttribute('role', 'img');
-  el.setAttribute('aria-label', title);
-  return el;
-}
-
-function entryLine(entry) {
-  const def = TAGS[entry.tag];
-  const row = document.createElement('div');
-  row.className = 'tip-entry';
-  const cy = document.createElement('span');
-  cy.className = 'tip-cy';
-  cy.lang = 'cy';
-  cy.textContent = entry.cy.join(', ');
-  row.append(cy);
-  if (def) row.append(' ', chip(def.cy, def, def.title));
-  const sep = document.createElement('span');
-  sep.className = 'tip-sep';
-  sep.setAttribute('aria-hidden', 'true');
-  sep.textContent = ' – ';
-  const en = document.createElement('span');
-  en.className = 'tip-en';
-  en.lang = 'en';
-  en.textContent = entry.en;
-  row.append(sep, en);
-  if (def?.en) row.append(' ', chip(def.en, def, def.enTitle));
-  return row;
-}
+// Tooltip content comes from the shared RenderCore (tools/render-core.js, loaded as
+// a classic script before this module), so the editor preview shows the same thing.
+const { fillTooltip } = window.RenderCore || {};
 
 export function initTooltips(root) {
+  if (!fillTooltip) return; // render-core.js failed to load: the text stays readable without tooltips
   const tip = document.createElement('div');
   tip.className = 'tooltip';
   tip.id = 'gloss-tip';
@@ -74,37 +32,11 @@ export function initTooltips(root) {
     tip.style.left = `${left}px`;
   }
 
-  function entriesOf(el) {
-    if (!el.dataset.entries) return [];
-    try {
-      const list = JSON.parse(el.dataset.entries);
-      return Array.isArray(list) ? list.filter((e) => e && Array.isArray(e.cy) && typeof e.en === 'string') : [];
-    } catch {
-      return [];
-    }
-  }
-
   function show(el) {
     if (current === el) return;
     hide();
     current = el;
-    const strong = document.createElement('strong');
-    strong.textContent = el.dataset.tip;
-    tip.replaceChildren(strong);
-    const entries = entriesOf(el);
-    if (entries.length) {
-      const list = document.createElement('div');
-      list.className = 'tip-entries';
-      for (const e of entries) list.append(entryLine(e));
-      tip.append(list);
-    }
-    if (el.dataset.note) {
-      for (const line of el.dataset.note.split('\n')) {
-        const small = document.createElement('small');
-        small.textContent = line;
-        tip.append(small);
-      }
-    }
+    if (fillTooltip) fillTooltip(tip, el);
     tip.hidden = false;
     el.setAttribute('aria-describedby', tip.id);
     el.classList.add('is-open');

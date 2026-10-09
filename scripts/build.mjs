@@ -13,9 +13,13 @@ import { createRequire } from 'node:module';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Parsing and metadata rules are shared with the linter so the two never disagree.
+const require = createRequire(import.meta.url);
 const {
-  LEVELS, MAX_SEGMENT_CHARS, parseFrontmatter, parseInline, isHeading, validateMeta,
-} = createRequire(import.meta.url)('../tools/lint-core.js');
+  LEVELS, MAX_SEGMENT_CHARS, parseFrontmatter, parseBlocks, isHeading, validateMeta,
+} = require('../tools/lint-core.js');
+const {
+  esc, cap, renderInline, plainInline, renderBody, levelBadge,
+} = require('../tools/render-core.js');
 const CONTENT = join(ROOT, 'content', 'articles');
 const SITE = join(ROOT, 'site');
 const DIST = join(ROOT, 'dist');
@@ -37,14 +41,9 @@ const warn = (where, msg) => report(warnings, 'warning', where, msg);
 
 // ---------------------------------------------------------------- helpers
 
-const esc = (s) => String(s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
 // Must stay in sync with fold() in site/js/util.js
 const fold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const readText = (p) => readFileSync(p, 'utf8').replace(/^﻿/, '').replace(/\r\n?/g, '\n');
 
 function fill(tpl, vars, name) {
@@ -86,46 +85,12 @@ function mp3Duration(buf) {
 // ------------------------------------------------------------ parsing
 // parseFrontmatter, parseInline and validateMeta live in tools/lint-core.js
 
-const renderInline = (parts) => parts.map((p) => {
-  if (p.text !== undefined) return esc(p.text);
-  const note = p.note ? ` data-note="${esc(p.note)}"` : '';
-  const entries = p.entries?.length ? ` data-entries="${esc(JSON.stringify(p.entries))}"` : '';
-  return `<span class="gloss" tabindex="0" data-tip="${esc(p.tip)}"${entries}${note}>${esc(p.surface)}</span>`;
-}).join('');
-
-const plainInline = (parts) => parts.map((p) => (p.text !== undefined ? p.text : p.surface)).join('');
-
-/** Parse the one-line-one-sentence body into blocks. */
+/** Parse the body into blocks, reporting gloss syntax problems as build errors. */
 function parseBody(body, where) {
-  const blocks = []; // {kind:'p-break'} | {kind:'h2', parts} | {kind:'seg', index, parts, raw}
   const problems = [];
-  let index = 0;
-  for (const raw of body.split('\n')) {
-    const line = raw.trim();
-    if (!line) { blocks.push({ kind: 'break' }); continue; }
-    if (isHeading(line)) {
-      blocks.push({ kind: 'h2', parts: parseInline(line.slice(3).trim(), problems) });
-      continue;
-    }
-    blocks.push({ kind: 'seg', index: index++, parts: parseInline(line, problems), raw: line });
-  }
+  const parsed = parseBlocks(body, problems);
   for (const p of problems) err(where, p);
-  return { blocks, count: index };
-}
-
-function renderBody(blocks, enLines) {
-  const out = [];
-  let open = false;
-  const close = () => { if (open) { out.push('</p>'); open = false; } };
-  for (const b of blocks) {
-    if (b.kind === 'break') { close(); continue; }
-    if (b.kind === 'h2') { close(); out.push(`<h2 lang="cy">${renderInline(b.parts)}</h2>`); continue; }
-    if (!open) { out.push('<p lang="cy">'); open = true; }
-    const en = enLines ? `<span class="seg-en" lang="en" hidden>${esc(enLines[b.index])}</span>` : '';
-    out.push(`<span class="seg" data-i="${b.index}">${renderInline(b.parts)}${en}</span>`);
-  }
-  close();
-  return out.join('\n');
+  return parsed;
 }
 
 // -------------------------------------------------------- article loading
@@ -247,13 +212,6 @@ function loadArticle(slug) {
 
 // ------------------------------------------------------------- rendering
 
-const levelBadge = (level) => {
-  const rank = LEVELS.findIndex(([id]) => id === level) + 1;
-  const dots = '●'.repeat(rank) + '○'.repeat(LEVELS.length - rank);
-  const en = LEVELS[rank - 1][1];
-  return `<span class="badge badge-level" data-level="${level}"><span class="dots" aria-hidden="true">${dots}</span> ${esc(cap(level))} <span class="badge-en" lang="en">${en}</span></span>`;
-};
-
 function renderArticle(a, tpl, prev, next) {
   const m = a.meta;
   const badges = [levelBadge(m.level)];
@@ -358,6 +316,8 @@ function main() {
   for (const dir of ['css', 'js']) cpSync(join(SITE, dir), join(DIST, dir), { recursive: true });
   if (existsSync(join(SITE, 'favicon.svg'))) cpSync(join(SITE, 'favicon.svg'), join(DIST, 'favicon.svg'));
   cpSync(join(ROOT, 'tools'), join(DIST, 'tools'), { recursive: true });
+  // the article page loads the shared render code as a classic script next to its other JS
+  cpSync(join(ROOT, 'tools', 'render-core.js'), join(DIST, 'js', 'render-core.js'));
 
   // article pages + audio
   const tpl = readFileSync(join(SITE, 'article.template.html'), 'utf8');

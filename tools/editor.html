@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Article editor · Gwrandewch a Dysgwch</title>
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f6b45'/%3E%3C/svg%3E">
+  <!-- The site's own stylesheet, so the preview is the real thing: ../css on the live site,
+       ../site/css when this file is opened from a clone of the repository. -->
+  <link rel="stylesheet" href="../css/styles.css" id="site-css">
+  <script>document.getElementById('site-css').addEventListener('error', function () { this.href = '../site/css/styles.css'; }, { once: true });</script>
+  <style>
+    :root { --ed-warn: #8a5a00; --ed-info: #2a5d8f; --ed-errbg: #fbe4e4; --ed-warnbg: #fff1c9; --ed-infobg: #e3eefa; }
+    @media (prefers-color-scheme: dark) { :root { --ed-warn: #f0c040; --ed-info: #8cc0f5; --ed-errbg: #3a1a1c; --ed-warnbg: #3b3512; --ed-infobg: #18283a; } }
+    body.ed { padding-bottom: 4rem; }
+    .ed-bar { position: sticky; top: 0; z-index: 40; background: var(--surface); border-bottom: 1px solid var(--line); padding: .5rem var(--gutter); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    @media (max-width: 700px) { .ed-bar { position: static; } }
+    .ed-bar h1 { font: 700 1.1rem/1.2 var(--serif); margin: 0 .5rem 0 0; }
+    .ed-btn { font: inherit; padding: .35rem .8rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 2.25rem; }
+    .ed-btn:hover:not(:disabled) { border-color: var(--accent); }
+    .ed-btn:disabled { opacity: .4; cursor: default; }
+    .ed-btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+    .ed-mini { font: inherit; font-size: .8rem; padding: .1rem .5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; min-height: 1.8rem; }
+    .ed-mini:hover { border-color: var(--accent); color: var(--ink); }
+    .ed-mini[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .ed-spacer { flex: 1; }
+    .ed-pill { display: inline-block; padding: .1rem .7rem; border-radius: 999px; font-size: .85rem; font-weight: 600; border: 1px solid transparent; }
+    .ed-pill.error { background: var(--ed-errbg); color: var(--red); }
+    .ed-pill.warn { background: var(--ed-warnbg); color: var(--ed-warn); }
+    .ed-pill.info { background: var(--ed-infobg); color: var(--ed-info); }
+    .ed-pill.ok { background: var(--accent); color: var(--accent-ink); }
+
+    .ed-main { max-width: 100rem; margin: 0 auto; padding: 1rem var(--gutter); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+    .ed-right { position: sticky; top: 3.6rem; max-height: calc(100vh - 4.2rem); overflow: auto; display: grid; gap: 1rem; }
+    .ed-panes { display: none; }
+    @media (max-width: 1000px) {
+      .ed-main { grid-template-columns: minmax(0, 1fr); }
+      .ed-right { position: static; max-height: none; }
+      .ed-panes { display: flex; gap: .5rem; padding: .5rem var(--gutter) 0; max-width: 100rem; margin: 0 auto; }
+      .ed-main[data-pane="edit"] .ed-right { display: none; }
+      .ed-main[data-pane="preview"] .ed-left { display: none; }
+    }
+    .ed-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; }
+    .ed-card > h2, .ed-card > summary { font: 700 1.05rem/1.3 var(--sans); margin: 0 0 .6rem; }
+    .ed-card > summary { cursor: pointer; margin: 0; }
+    .ed-hint { color: var(--muted); font-size: .85rem; margin: .25rem 0; }
+    .ed-help { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
+
+    .ed-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .6rem .9rem; margin-top: .7rem; }
+    .ed-form label, .ed-field { display: grid; gap: .15rem; font-size: .85rem; color: var(--muted); }
+    .ed-form .wide { grid-column: 1 / -1; }
+    .ed-in, .ed-form input[type="text"], .ed-form input[type="date"], .ed-form select, .ed-form textarea, .ed-field input, .ed-field select {
+      font: inherit; font-size: 1rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .4rem .6rem; width: 100%; min-width: 0;
+    }
+    .ed-form textarea { resize: vertical; min-height: 3.2rem; }
+    .ed-inline { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+    .ed-inline input[type="text"] { flex: 1; min-width: 8rem; }
+
+    #ed-rows { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .6rem; }
+    .ed-row { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; background: var(--surface); padding: .45rem .6rem .6rem; }
+    .ed-row.has-error { border-left-color: var(--red); }
+    .ed-row.has-warn { border-left-color: var(--ed-warn); }
+    .ed-row.is-active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+    .ed-row[data-kind="heading"] { background: var(--accent-soft); }
+    .ed-row-head { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-bottom: .35rem; }
+    .ed-n { font: 700 .8rem var(--sans); color: var(--muted); min-width: 2rem; }
+    .ed-cols { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+    @media (max-width: 640px) { .ed-cols { grid-template-columns: 1fr; } }
+    .ed-cell { min-width: 0; display: grid; gap: .3rem; align-content: start; }
+    .ed-cell-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .ed-view { font: 1.1rem/1.75 var(--serif); padding: .3rem .5rem; border: 1px dashed transparent; border-radius: 8px; min-height: 2.4rem; cursor: text; overflow-wrap: anywhere; }
+    .ed-view:hover, .ed-view:focus-visible { border-color: var(--line); }
+    .ed-view:empty::before { content: attr(data-placeholder); color: var(--muted); font: italic .9rem var(--sans); }
+    .ed-view .gloss { cursor: pointer; }
+    .ed-ta { font: 1.1rem/1.6 var(--serif); width: 100%; resize: none; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; padding: .3rem .5rem; background: var(--bg); color: var(--ink); min-height: 2.4rem; }
+    .ed-ta[hidden] { display: none; }
+    .ed-ta.en { font-family: var(--sans); font-size: 1rem; }
+    .ed-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+    .ed-chip { font: inherit; font-size: .8rem; padding: .05rem .5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ed-chip:hover { border-color: var(--accent); }
+    .ed-chip .tags { color: var(--muted); }
+    .ed-msgs { margin: .4rem 0 0; padding: 0; list-style: none; display: grid; gap: .15rem; font-size: .8rem; }
+    .ed-msgs li.error { color: var(--red); }
+    .ed-msgs li.warn { color: var(--ed-warn); }
+    .ed-msgs li.info { color: var(--ed-info); }
+
+    #ed-preview { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    #ed-preview .article-head { background: var(--accent-soft); padding: 1rem 0; }
+    #ed-preview .wrap { max-width: none; padding: 0 1rem; }
+    #ed-preview .text { max-width: 65ch; font-size: 1.15rem; }
+    #ed-preview .seg { cursor: pointer; }
+    #ed-preview .seg.is-current { background: var(--hl); text-decoration: underline solid var(--hl-edge) 3px; text-underline-offset: .22em; }
+    .ed-issues { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .3rem; font-size: .88rem; }
+    .ed-issues li { border-left: 4px solid var(--line); padding: .15rem .5rem; background: var(--bg); border-radius: 0 6px 6px 0; }
+    .ed-issues li.error { border-left-color: var(--red); }
+    .ed-issues li.warn { border-left-color: var(--ed-warn); }
+    .ed-issues li.info { border-left-color: var(--ed-info); }
+    .ed-issues button { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; margin-right: .4rem; font-size: .8rem; }
+    .ed-files { list-style: none; margin: 0; padding: 0; font-size: .9rem; display: grid; gap: .25rem; }
+    .ed-files .ok::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+    .ed-files .no::before { content: "– "; color: var(--muted); }
+    .ed-files .bad::before { content: "! "; color: var(--red); font-weight: 700; }
+
+    #ed-selbtn { position: fixed; z-index: 70; display: none; }
+    #ed-toast { position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); z-index: 90; max-width: min(34rem, calc(100% - 2rem)); background: var(--ink); color: var(--bg); padding: .5rem 1rem; border-radius: 10px; box-shadow: var(--shadow); display: none; }
+    #ed-toast.error { background: var(--red); color: #fff; }
+    #ed-banner { display: none; max-width: 100rem; margin: .75rem auto 0; padding: 0 var(--gutter); }
+    #ed-banner > div { background: var(--ed-warnbg); border: 1px solid var(--line); border-radius: 10px; padding: .5rem .8rem; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+
+    dialog.ed-dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); width: min(46rem, calc(100% - 1.5rem)); max-height: calc(100vh - 2rem); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+    dialog.ed-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+    .ed-dialog h2 { margin: 0 0 .6rem; font: 700 1.2rem/1.3 var(--serif); }
+    .ed-dialog fieldset { border: 1px solid var(--line); border-radius: 10px; margin: .8rem 0 0; padding: .5rem .7rem .7rem; }
+    .ed-dialog legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
+    .ed-entry { display: grid; grid-template-columns: minmax(8rem, 1.3fr) minmax(8.5rem, .8fr) minmax(7rem, 1fr) auto; gap: .35rem; margin-bottom: .4rem; align-items: center; }
+    @media (max-width: 640px) { .ed-entry { grid-template-columns: 1fr 1fr; } }
+    .ed-entry .acts { display: flex; gap: .2rem; }
+    .ed-note { display: grid; grid-template-columns: 1fr auto; gap: .35rem; margin-bottom: .4rem; }
+    .ed-demo { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; display: grid; gap: .5rem; }
+    .ed-demo .tooltip { position: static; display: inline-block; pointer-events: auto; justify-self: start; max-width: 100%; }
+    #g-markup { font: .8rem ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; overflow-wrap: anywhere; color: var(--muted); }
+    #g-errors { color: var(--red); font-size: .88rem; margin: .5rem 0 0; min-height: 1.2rem; }
+    .ed-dialog menu { list-style: none; display: flex; gap: .5rem; justify-content: flex-end; flex-wrap: wrap; margin: .8rem 0 0; padding: 0; }
+    .ed-dialog textarea.big { width: 100%; min-height: 12rem; font: 1rem/1.5 var(--serif); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: .5rem; }
+    .ed-radio { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .9rem; margin: .5rem 0; }
+  </style>
+</head>
+<body class="ed">
+  <div class="ed-bar" role="toolbar" aria-label="Editor">
+    <h1>Article editor</h1>
+    <button type="button" class="ed-btn" id="b-new">New</button>
+    <label class="ed-btn" for="f-folder" style="display:inline-flex;align-items:center">Open folder…</label>
+    <input type="file" id="f-folder" webkitdirectory hidden>
+    <label class="ed-btn" for="f-files" style="display:inline-flex;align-items:center">Open files…</label>
+    <input type="file" id="f-files" multiple accept=".md,.json,audio/*" hidden>
+    <button type="button" class="ed-btn" id="b-paste">Paste text…</button>
+    <button type="button" class="ed-btn" id="b-undo" disabled>Undo</button>
+    <span class="ed-spacer"></span>
+    <span id="t-pill" class="ed-pill info" role="status" aria-live="polite">…</span>
+    <button type="button" class="ed-btn primary" id="b-zip">Download zip</button>
+  </div>
+  <div class="ed-panes" role="tablist" aria-label="Pane">
+    <button type="button" class="ed-btn" id="p-edit" aria-pressed="true">Edit</button>
+    <button type="button" class="ed-btn" id="p-preview" aria-pressed="false">Preview and checks</button>
+  </div>
+  <div id="ed-banner"><div><span id="ed-banner-text"></span><button type="button" class="ed-btn" id="b-restore">Restore draft</button><button type="button" class="ed-btn" id="b-discard">Discard</button></div></div>
+
+  <div class="ed-main" id="ed-main" data-pane="edit">
+    <div class="ed-left">
+      <details class="ed-card" id="d-details" open>
+        <summary>1 · Details</summary>
+        <div class="ed-form">
+          <label>Title (Welsh) <input type="text" id="m-title" lang="cy" autocomplete="off"></label>
+          <label>Title (English, optional) <input type="text" id="m-title_en" lang="en" autocomplete="off"></label>
+          <label>Level <select id="m-level"></select></label>
+          <label>Date <input type="date" id="m-date"></label>
+          <label class="wide">Summary (one or two sentences, shown on the card) <textarea id="m-summary" lang="en" rows="2"></textarea></label>
+          <label>Topics (comma separated, lowercase) <input type="text" id="m-topics" placeholder="food, shopping" autocomplete="off"></label>
+          <label>Dialect <select id="m-dialect"><option value="">Not stated</option><option value="north">North</option><option value="south">South</option><option value="neutral">Neutral</option></select></label>
+          <label>Narrator <input type="text" id="m-narrator" autocomplete="off"></label>
+          <label>Source (if not original) <input type="text" id="m-source" autocomplete="off"></label>
+          <label>Licence <input type="text" id="m-licence" autocomplete="off"></label>
+          <label>Audio file name <input type="text" id="m-audio" autocomplete="off"></label>
+          <div class="ed-field wide">
+            <span>Folder name (the article's address, <code>content/articles/&lt;name&gt;/</code>)</span>
+            <div class="ed-inline">
+              <input type="text" id="m-slug" autocomplete="off" spellcheck="false" aria-describedby="m-slug-msg">
+              <button type="button" class="ed-mini" id="b-slug-auto">Generate from title</button>
+            </div>
+            <span id="m-slug-msg" class="ed-hint"></span>
+          </div>
+          <label class="wide ed-inline" style="display:flex;color:var(--ink)"><input type="checkbox" id="m-draft"> Draft (keep this article off the live site)</label>
+        </div>
+        <ul class="ed-msgs" id="m-msgs"></ul>
+      </details>
+
+      <section class="ed-card" style="margin-top:1rem" aria-labelledby="h-sent">
+        <h2 id="h-sent">2 · Sentences</h2>
+        <p class="ed-help">One row per sentence, Welsh and English together, so they can never get out of step. Select words in the Welsh (drag or double-click) and press <kbd>G</kbd>, or the “Add tooltip” button, to build a tooltip; click a dotted word to edit it. Use <b>Edit</b> (or <kbd>Enter</kbd> on a sentence) to change the Welsh text itself. <kbd>Enter</kbd> splits a sentence, <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves a row.</p>
+        <ol id="ed-rows"></ol>
+        <div class="ed-inline" style="margin-top:.7rem">
+          <button type="button" class="ed-btn" id="b-addrow">+ Add sentence</button>
+          <button type="button" class="ed-btn" id="b-addhead">+ Add ## heading</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="ed-right">
+      <section class="ed-card" aria-labelledby="h-prev">
+        <h2 id="h-prev">Preview</h2>
+        <p class="ed-hint">Exactly how the article page will render. Hover or tap a dotted word; click a sentence to jump to its row.</p>
+        <div id="ed-preview" class="page-article"></div>
+      </section>
+      <section class="ed-card" aria-labelledby="h-checks">
+        <h2 id="h-checks">Checks</h2>
+        <div id="c-summary" class="ed-hint"></div>
+        <ul class="ed-issues" id="c-list"></ul>
+        <p class="ed-hint">These are the same checks the build runs, on the files this editor will write. Line numbers refer to those files.</p>
+      </section>
+      <section class="ed-card" aria-labelledby="h-files">
+        <h2 id="h-files">Files</h2>
+        <ul class="ed-files" id="x-files"></ul>
+        <div class="ed-inline" style="margin-top:.6rem">
+          <label class="ed-btn" for="f-audio" style="display:inline-flex;align-items:center">Attach audio…</label>
+          <input type="file" id="f-audio" accept="audio/*" hidden>
+          <button type="button" class="ed-btn" id="b-md">article.md</button>
+          <button type="button" class="ed-btn" id="b-en">article.en.md</button>
+        </div>
+        <p class="ed-help">Download the zip, unzip it into <code>content/articles/</code>, then commit and push. Sentence timings are made with the <a href="sync-tool.html">sync tool</a> (load the audio and the downloaded <code>article.md</code>), then put <code>timings.json</code> in the same folder, or open the folder here to keep it in the zip.</p>
+      </section>
+    </div>
+  </div>
+
+  <button type="button" class="ed-btn primary" id="ed-selbtn">Add tooltip (G)</button>
+  <div id="ed-toast" role="status" aria-live="polite"></div>
+
+  <dialog class="ed-dialog" id="ed-gloss" aria-labelledby="g-title">
+    <form method="dialog" id="g-form" onsubmit="return false">
+      <h2 id="g-title">Tooltip</h2>
+      <div class="ed-form" style="margin-top:0">
+        <label>Text in the article <input type="text" id="g-surface" lang="cy" autocomplete="off"></label>
+        <label>Translation: the bold top line, the meaning in this sentence <input type="text" id="g-tip" lang="en" autocomplete="off" placeholder="wind turbines"></label>
+      </div>
+      <fieldset>
+        <legend>Words (one line each in the tooltip)</legend>
+        <p class="ed-hint">Welsh as <em>singular, plural</em>, a tag, then the English singular. Gender is typed once; the English (m)/(f) is added for you.</p>
+        <div id="g-entries"></div>
+        <div class="ed-inline">
+          <button type="button" class="ed-btn" id="g-addentry">+ Add word</button>
+          <button type="button" class="ed-btn" id="g-split">Split phrase into words</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Notes (small lines underneath)</legend>
+        <div id="g-notes"></div>
+        <div class="ed-inline">
+          <button type="button" class="ed-btn" id="g-addnote">+ Add note</button>
+          <button type="button" class="ed-btn" data-mut="soft mutation of">Soft mutation</button>
+          <button type="button" class="ed-btn" data-mut="aspirate mutation of">Aspirate</button>
+          <button type="button" class="ed-btn" data-mut="nasal mutation of">Nasal</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>How it will look</legend>
+        <div class="ed-demo"><div class="tooltip" id="g-demo" role="img" aria-label="Tooltip preview"></div><div id="g-markup"></div></div>
+      </fieldset>
+      <p id="g-errors" role="alert"></p>
+      <menu>
+        <button type="button" class="ed-btn" id="g-remove">Remove tooltip</button>
+        <button type="button" class="ed-btn" id="g-cancel">Cancel</button>
+        <button type="button" class="ed-btn primary" id="g-save">Save tooltip</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog class="ed-dialog" id="ed-paste" aria-labelledby="p-title">
+    <form method="dialog" onsubmit="return false">
+      <h2 id="p-title">Paste text</h2>
+      <div class="ed-radio" role="radiogroup" aria-label="Which column">
+        <label><input type="radio" name="p-target" value="cy" checked> Welsh text</label>
+        <label><input type="radio" name="p-target" value="en"> English text (fills the English column, row by row)</label>
+      </div>
+      <textarea class="big" id="p-text" placeholder="Paste here. A blank line starts a new paragraph; a line starting ## is a heading."></textarea>
+      <div class="ed-radio" role="radiogroup" aria-label="How to split">
+        <label><input type="radio" name="p-mode" value="sentences" checked> Split into sentences</label>
+        <label><input type="radio" name="p-mode" value="lines"> Every line is one sentence</label>
+      </div>
+      <div class="ed-radio" id="p-where" role="radiogroup" aria-label="Where">
+        <label><input type="radio" name="p-where" value="append" checked> Add after the last row</label>
+        <label><input type="radio" name="p-where" value="replace"> Replace all rows</label>
+      </div>
+      <p class="ed-hint" id="p-count" role="status"></p>
+      <menu>
+        <button type="button" class="ed-btn" id="p-cancel">Cancel</button>
+        <button type="button" class="ed-btn primary" id="p-ok">Add to the article</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="lint-core.js"></script>
+  <script src="render-core.js"></script>
+  <script src="editor-core.js"></script>
+  <script>
+(() => {
+  'use strict';
+  const L = ArticleLint;
+  const E = EditorCore;
+  const R = RenderCore;
+  const $ = (id) => document.getElementById(id);
+  const DRAFT_KEY = 'gad-editor-draft';
+  const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
+  };
+
+  // ---------------------------------------------------------------- state
+  let meta = E.newMeta();
+  let items = [E.newItem()];
+  let slug = '';
+  let slugAuto = true;
+  let audioFile = null;
+  let timings = null;
+  let dirty = false;
+  let undoStack = [];
+  let lastOut = null;
+  let timer = 0;
+  let saveTimer = 0;
+  let pendingSel = null;
+
+  const snapshot = () => JSON.stringify({ meta, items, slug, slugAuto });
+  function pushUndo() {
+    undoStack.push(snapshot());
+    if (undoStack.length > 60) undoStack.shift();
+    $('b-undo').disabled = false;
+  }
+  function loadSnapshot(str) {
+    const s = JSON.parse(str);
+    meta = Object.assign(E.newMeta(), s.meta);
+    items = s.items && s.items.length ? s.items : [E.newItem()];
+    slug = s.slug || '';
+    slugAuto = s.slugAuto !== false;
+  }
+  function changed() { dirty = true; schedule(); }
+  function schedule() { clearTimeout(timer); timer = setTimeout(refresh, 120); }
+
+  let toastTimer = 0;
+  function toast(msg, isError) {
+    const t = $('ed-toast');
+    t.textContent = msg;
+    t.className = isError ? 'error' : '';
+    t.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.style.display = 'none'; }, isError ? 6000 : 3500);
+  }
+
+  // ------------------------------------------------------------- details
+  const FIELDS = ['title', 'title_en', 'date', 'summary', 'dialect', 'narrator', 'source', 'licence', 'audio'];
+  function fillLevelSelect() {
+    const sel = $('m-level');
+    sel.replaceChildren(new Option('Choose a level…', ''));
+    for (const [id, en] of L.LEVELS) sel.append(new Option(`${id.charAt(0).toUpperCase()}${id.slice(1)} · ${en}`, id));
+  }
+  function syncForm() {
+    for (const k of FIELDS) $(`m-${k}`).value = meta[k] || '';
+    $('m-level').value = meta.level || '';
+    $('m-topics').value = (meta.topics || []).join(', ');
+    $('m-draft').checked = !!meta.draft;
+    $('m-slug').value = slug;
+  }
+  function bindForm() {
+    for (const k of FIELDS) {
+      $(`m-${k}`).addEventListener('input', (e) => {
+        meta[k] = e.target.value;
+        if (k === 'title' || k === 'title_en') autoSlug();
+        changed();
+      });
+    }
+    $('m-level').addEventListener('change', (e) => { meta.level = e.target.value; changed(); });
+    $('m-draft').addEventListener('change', (e) => { meta.draft = e.target.checked; changed(); });
+    $('m-topics').addEventListener('input', (e) => {
+      meta.topics = e.target.value.split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
+      changed();
+    });
+    $('m-slug').addEventListener('input', (e) => { slug = e.target.value; slugAuto = false; changed(); });
+    $('b-slug-auto').addEventListener('click', () => { slugAuto = true; autoSlug(); changed(); });
+  }
+  function autoSlug() {
+    if (!slugAuto) return;
+    slug = E.slugify(meta.title_en || meta.title);
+    $('m-slug').value = slug;
+  }
+
+  // ---------------------------------------------------------------- rows
+  const ROW_HTML = `
+    <div class="ed-row-head">
+      <span class="ed-n"></span>
+      <span class="ed-spacer"></span>
+      <button type="button" class="ed-mini" data-act="edit" title="Edit the Welsh text">Edit</button>
+      <button type="button" class="ed-mini" data-act="up" aria-label="Move up" title="Move up (Alt+↑)">↑</button>
+      <button type="button" class="ed-mini" data-act="down" aria-label="Move down" title="Move down (Alt+↓)">↓</button>
+      <button type="button" class="ed-mini" data-act="para" aria-pressed="false" title="Start a new paragraph before this sentence">¶</button>
+      <button type="button" class="ed-mini" data-act="head" aria-pressed="false" title="Make this a ## heading">H</button>
+      <button type="button" class="ed-mini" data-act="merge" title="Merge with the next row">Merge ↓</button>
+      <button type="button" class="ed-mini" data-act="add" title="Add a sentence below">+ Below</button>
+      <button type="button" class="ed-mini" data-act="del" title="Delete this row">Delete</button>
+    </div>
+    <div class="ed-cols">
+      <div class="ed-cell">
+        <span class="ed-cell-label">Welsh</span>
+        <div class="ed-view" lang="cy" tabindex="0" role="textbox" aria-readonly="true" aria-label="Welsh sentence (Enter to edit)" data-placeholder="Click Edit, then type the Welsh sentence"></div>
+        <textarea class="ed-ta cy" lang="cy" rows="1" hidden aria-label="Welsh sentence" spellcheck="false"></textarea>
+        <div class="ed-chips"></div>
+      </div>
+      <div class="ed-cell">
+        <span class="ed-cell-label">English</span>
+        <textarea class="ed-ta en" lang="en" rows="1" aria-label="English translation"></textarea>
+      </div>
+    </div>
+    <ul class="ed-msgs"></ul>`;
+
+  function autosize(ta) { ta.style.height = 'auto'; ta.style.height = `${ta.scrollHeight + 2}px`; }
+
+  function glossChipText(g) {
+    const tags = [...new Set(g.entries.map((e) => e.tag).filter(Boolean))];
+    return { text: `${g.surface} → ${g.tip}`, tags: tags.length ? ` (${tags.join(', ')})` : '' };
+  }
+
+  function paintRowView(li, item) {
+    const view = li.querySelector('.ed-view');
+    view.innerHTML = R.renderInline(L.parseInline(item.cy, []), { indexGlosses: true });
+    const chips = li.querySelector('.ed-chips');
+    chips.replaceChildren();
+    E.glossesOf(item.cy).forEach((g) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ed-chip';
+      b.dataset.gi = g.index;
+      const c = glossChipText(g);
+      b.append(c.text);
+      if (c.tags) { const s = document.createElement('span'); s.className = 'tags'; s.textContent = c.tags; b.append(s); }
+      b.title = 'Edit this tooltip';
+      chips.append(b);
+    });
+  }
+
+  function paintRowHead(li, item, i) {
+    li.dataset.i = i;
+    li.dataset.kind = item.kind;
+    const n = items.slice(0, i + 1).filter((x) => x.kind === 'seg').length;
+    li.querySelector('.ed-n').textContent = item.kind === 'heading' ? '##' : String(n);
+    li.querySelector('[data-act="para"]').setAttribute('aria-pressed', String(!!item.breakBefore));
+    li.querySelector('[data-act="para"]').hidden = item.kind === 'heading';
+    li.querySelector('[data-act="head"]').setAttribute('aria-pressed', String(item.kind === 'heading'));
+    li.querySelector('[data-act="up"]').disabled = i === 0;
+    li.querySelector('[data-act="down"]').disabled = i === items.length - 1;
+    li.querySelector('[data-act="merge"]').disabled = i === items.length - 1;
+  }
+
+  function buildRow(item, i) {
+    const li = document.createElement('li');
+    li.className = 'ed-row';
+    li.innerHTML = ROW_HTML;
+    li.querySelector('.ed-ta.cy').value = item.cy;
+    li.querySelector('.ed-ta.en').value = item.en;
+    paintRowHead(li, item, i);
+    paintRowView(li, item);
+    return li;
+  }
+
+  function renderRows() {
+    const ol = $('ed-rows');
+    ol.replaceChildren(...items.map(buildRow));
+    ol.querySelectorAll('.ed-ta.en').forEach(autosize);
+  }
+  const rowEl = (i) => $('ed-rows').children[i];
+
+  function startEdit(i, caret) {
+    const li = rowEl(i);
+    if (!li) return;
+    const ta = li.querySelector('.ed-ta.cy');
+    li.querySelector('.ed-view').hidden = true;
+    ta.hidden = false;
+    ta.value = items[i].cy;
+    autosize(ta);
+    ta.focus();
+    const c = caret == null ? ta.value.length : caret;
+    ta.setSelectionRange(c, c);
+  }
+  function endEdit(li) {
+    if (!li.isConnected) return; // the row was rebuilt (split, move, delete): its text is already in the model
+    const i = Number(li.dataset.i);
+    const ta = li.querySelector('.ed-ta.cy');
+    if (ta.hidden) return;
+    items[i].cy = ta.value.replace(/\s*\n\s*/g, ' ').trim();
+    ta.hidden = true;
+    li.querySelector('.ed-view').hidden = false;
+    paintRowView(li, items[i]);
+    changed();
+  }
+  function focusEn(i) {
+    const ta = rowEl(i) && rowEl(i).querySelector('.ed-ta.en');
+    if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  }
+
+  function structural(fn, focus) {
+    pushUndo();
+    fn();
+    if (!items.length) items.push(E.newItem());
+    renderRows();
+    changed();
+    if (focus) {
+      if (focus.edit != null) startEdit(focus.edit, focus.caret);
+      else if (focus.en != null) focusEn(focus.en);
+    }
+  }
+
+  function splitAt(i, caret) {
+    const raw = items[i].cy;
+    for (const g of E.glossesOf(raw)) if (caret > g.start && caret < g.end) { caret = g.end; break; }
+    structural(() => {
+      const right = raw.slice(caret).trim();
+      items[i].cy = raw.slice(0, caret).trim();
+      items.splice(i + 1, 0, { kind: 'seg', cy: right, en: '', breakBefore: false });
+    }, { edit: i + 1, caret: 0 });
+  }
+
+  function bulkInsert(i, text, mode) {
+    const parsed = E.splitText(text, mode || 'sentences');
+    if (!parsed.length) return;
+    structural(() => {
+      const replace = !items[i].cy.trim() && !items[i].en.trim();
+      items.splice(replace ? i : i + 1, replace ? 1 : 0, ...parsed);
+    });
+    toast(`Added ${parsed.length} row${parsed.length === 1 ? '' : 's'}.`);
+  }
+
+  function rowAction(act, i) {
+    const it = items[i];
+    switch (act) {
+      case 'edit': startEdit(i); break;
+      case 'up': if (i > 0) structural(() => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; }); break;
+      case 'down': if (i < items.length - 1) structural(() => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; }); break;
+      case 'para': it.breakBefore = !it.breakBefore; paintRowHead(rowEl(i), it, i); changed(); break;
+      case 'head': structural(() => { it.kind = it.kind === 'heading' ? 'seg' : 'heading'; }); break;
+      case 'merge': if (i < items.length - 1) structural(() => {
+        const nx = items[i + 1];
+        it.cy = [it.cy, nx.cy].filter(Boolean).join(' ');
+        it.en = [it.en, nx.en].filter(Boolean).join(' ');
+        items.splice(i + 1, 1);
+      }); break;
+      case 'add': structural(() => { items.splice(i + 1, 0, E.newItem()); }, { edit: i + 1 }); break;
+      case 'del': structural(() => { items.splice(i, 1); }); break;
+      default:
+    }
+  }
+
+  function bindRows() {
+    const ol = $('ed-rows');
+    ol.addEventListener('click', (e) => {
+      const li = e.target.closest('.ed-row');
+      if (!li) return;
+      const i = Number(li.dataset.i);
+      const btn = e.target.closest('[data-act]');
+      if (btn) { rowAction(btn.dataset.act, i); return; }
+      const chip = e.target.closest('.ed-chip');
+      if (chip) { openBuilder({ mode: 'edit', row: i, gi: Number(chip.dataset.gi) }); return; }
+      const gloss = e.target.closest('.ed-view .gloss');
+      if (gloss && !String(getSelection()).length) { openBuilder({ mode: 'edit', row: i, gi: Number(gloss.dataset.gi) }); return; }
+      // Clicking filled text must not start editing: dragging or double-clicking words is how you pick a tooltip.
+      if (e.target.closest('.ed-view') && !items[i].cy) startEdit(i);
+    });
+    ol.addEventListener('input', (e) => {
+      const li = e.target.closest('.ed-row');
+      if (!li) return;
+      const i = Number(li.dataset.i);
+      if (e.target.classList.contains('en')) items[i].en = e.target.value.replace(/\s*\n\s*/g, ' ');
+      else if (e.target.classList.contains('cy')) items[i].cy = e.target.value.replace(/\s*\n\s*/g, ' ');
+      autosize(e.target);
+      changed();
+    });
+    ol.addEventListener('keydown', (e) => {
+      const li = e.target.closest('.ed-row');
+      if (!li) return;
+      const i = Number(li.dataset.i);
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const j = e.key === 'ArrowUp' ? i - 1 : i + 1;
+        if (j < 0 || j >= items.length) return;
+        const wasEn = e.target.classList.contains('en');
+        structural(() => { [items[i], items[j]] = [items[j], items[i]]; }, wasEn ? { en: j } : { edit: j });
+        return;
+      }
+      if (e.target.classList.contains('cy')) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); splitAt(i, e.target.selectionStart); }
+        else if (e.key === 'Escape') { e.preventDefault(); endEdit(li); li.querySelector('.ed-view').focus(); }
+      } else if (e.target.classList.contains('en')) {
+        if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); if (i < items.length - 1) focusEn(i + 1); }
+      } else if (e.target.classList.contains('ed-view') && (e.key === 'Enter' || e.key === 'F2')) {
+        e.preventDefault();
+        startEdit(i);
+      } else if (e.target.classList.contains('gloss') && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        openBuilder({ mode: 'edit', row: i, gi: Number(e.target.dataset.gi) });
+      }
+    });
+    ol.addEventListener('focusout', (e) => {
+      const li = e.target.closest('.ed-row');
+      if (li && e.target.classList.contains('cy')) endEdit(li);
+    });
+    ol.addEventListener('focusin', (e) => {
+      const li = e.target.closest('.ed-row');
+      if (!li) return;
+      for (const x of ol.querySelectorAll('.is-active')) x.classList.remove('is-active');
+      li.classList.add('is-active');
+      highlightPreview(items[Number(li.dataset.i)]);
+    });
+    ol.addEventListener('paste', (e) => {
+      const li = e.target.closest('.ed-row');
+      if (!li || !e.target.classList.contains('cy')) return;
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      if (!/\n/.test(text.trim())) return;
+      e.preventDefault();
+      const i = Number(li.dataset.i);
+      items[i].cy = e.target.value.slice(0, e.target.selectionStart) + e.target.value.slice(e.target.selectionEnd);
+      bulkInsert(i, text, 'sentences');
+    });
+    $('b-addrow').addEventListener('click', () => structural(() => { items.push(E.newItem()); }, { edit: items.length }));
+    $('b-addhead').addEventListener('click', () => structural(() => { items.push({ kind: 'heading', cy: '', en: '', breakBefore: false }); }, { edit: items.length }));
+  }
+
+  // ------------------------------------------- selecting words for a tooltip
+  function viewOf(node) {
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    return el ? el.closest('.ed-view') : null;
+  }
+  function currentSelection() {
+    const sel = getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    const view = viewOf(range.startContainer);
+    if (!view || view !== viewOf(range.endContainer)) return null;
+    const pre = document.createRange();
+    pre.selectNodeContents(view);
+    pre.setEnd(range.startContainer, range.startOffset);
+    const plain = view.textContent;
+    const s0 = pre.toString().length;
+    const [s, e] = E.trimRange(plain, s0, s0 + range.toString().length);
+    if (e <= s) return null;
+    return { row: Number(view.closest('.ed-row').dataset.i), start: s, end: e, rect: range.getBoundingClientRect() };
+  }
+  function updateSelectionButton() {
+    const btn = $('ed-selbtn');
+    pendingSel = currentSelection();
+    if (!pendingSel || $('ed-gloss').open) { btn.style.display = 'none'; return; }
+    btn.style.display = 'block';
+    const r = pendingSel.rect;
+    const w = btn.offsetWidth || 140;
+    btn.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
+    btn.style.top = `${Math.max(8, r.top - 44)}px`;
+  }
+  document.addEventListener('selectionchange', updateSelectionButton);
+  $('ed-selbtn').addEventListener('pointerdown', (e) => e.preventDefault());
+  $('ed-selbtn').addEventListener('mousedown', (e) => e.preventDefault());
+  $('ed-selbtn').addEventListener('click', () => {
+    if (pendingSel) openBuilder({ mode: 'new', row: pendingSel.row, start: pendingSel.start, end: pendingSel.end });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.metaKey && !e.altKey && pendingSel && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !$('ed-gloss').open) {
+      e.preventDefault();
+      openBuilder({ mode: 'new', row: pendingSel.row, start: pendingSel.start, end: pendingSel.end });
+    }
+  });
+
+  // -------------------------------------------------------- tooltip builder
+  let G = null; // {ctx, surface, tip, entries:[{cy,tag,en}], notes:[]}
+  const TAG_OPTIONS = [
+    ['', 'no tag'], ['eg', 'eg · masculine'], ['eb', 'eb · feminine'], ['egb', 'egb · either'],
+    ['adj', 'adj'], ['verb', 'verb'], ['prep', 'prep'], ['adv', 'adv'], ['conj', 'conj'], ['pron', 'pron'],
+  ];
+  const toEntry = (e) => ({ cy: e.cy.split(',').map((x) => x.trim()).filter(Boolean), tag: e.tag || null, en: e.en.trim() });
+  const fromEntry = (e) => ({ cy: e.cy.join(', '), tag: e.tag || '', en: e.en });
+  const glossObject = () => ({
+    surface: G.surface.trim(), tip: G.tip.trim(), entries: G.entries.map(toEntry), notes: G.notes.map((n) => n.trim()).filter(Boolean),
+  });
+
+  function openBuilder(ctx) {
+    const item = items[ctx.row];
+    if (!item) return;
+    endEditIfOpen(ctx.row);
+    if (ctx.mode === 'new') {
+      const plain = E.plainOf(item.cy);
+      const surface = plain.slice(ctx.start, ctx.end);
+      const probe = E.wrapSelection(item.cy, ctx.start, ctx.end, { surface, tip: 'x', entries: [], notes: [] });
+      if (probe.error) { toast(probe.error, true); return; }
+      if (probe.edit != null) { openBuilder({ mode: 'edit', row: ctx.row, gi: probe.edit }); return; }
+      const single = !/\s/.test(surface);
+      G = { ctx, surface, tip: '', entries: single ? [{ cy: surface.toLowerCase(), tag: '', en: '' }] : [], notes: [] };
+      $('g-title').textContent = `New tooltip for “${surface}”`;
+    } else {
+      const g = E.glossesOf(item.cy)[ctx.gi];
+      if (!g) return;
+      G = { ctx, surface: g.surface, tip: g.tip, entries: g.entries.map(fromEntry), notes: g.notes.slice() };
+      $('g-title').textContent = `Edit tooltip for “${g.surface}”`;
+    }
+    $('g-remove').hidden = ctx.mode !== 'edit';
+    $('g-surface').value = G.surface;
+    $('g-tip').value = G.tip;
+    renderEntries();
+    renderNotes();
+    updateBuilder();
+    getSelection().removeAllRanges();
+    $('ed-selbtn').style.display = 'none';
+    $('ed-gloss').showModal();
+    $('g-tip').focus();
+  }
+  function endEditIfOpen(i) { const li = rowEl(i); if (li && !li.querySelector('.ed-ta.cy').hidden) endEdit(li); }
+
+  function renderEntries() {
+    const box = $('g-entries');
+    box.replaceChildren();
+    G.entries.forEach((e, k) => {
+      const row = document.createElement('div');
+      row.className = 'ed-entry';
+      const cy = document.createElement('input');
+      cy.type = 'text'; cy.className = 'ed-in'; cy.lang = 'cy'; cy.value = e.cy; cy.placeholder = 'tyrbin, tyrbinau';
+      cy.setAttribute('aria-label', `Word ${k + 1}: Welsh singular, plural`);
+      const tag = document.createElement('select');
+      tag.className = 'ed-in';
+      tag.setAttribute('aria-label', `Word ${k + 1}: tag`);
+      for (const [v, label] of TAG_OPTIONS) tag.append(new Option(label, v));
+      tag.value = e.tag;
+      const en = document.createElement('input');
+      en.type = 'text'; en.className = 'ed-in'; en.lang = 'en'; en.value = e.en; en.placeholder = 'turbine';
+      en.setAttribute('aria-label', `Word ${k + 1}: English`);
+      const acts = document.createElement('span');
+      acts.className = 'acts';
+      const mk = (label, aria, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ed-mini'; b.textContent = label; b.setAttribute('aria-label', `${aria} (word ${k + 1})`); b.addEventListener('click', fn); return b; };
+      acts.append(
+        mk('↑', 'Move up', () => { if (k > 0) { [G.entries[k - 1], G.entries[k]] = [G.entries[k], G.entries[k - 1]]; renderEntries(); updateBuilder(); } }),
+        mk('↓', 'Move down', () => { if (k < G.entries.length - 1) { [G.entries[k + 1], G.entries[k]] = [G.entries[k], G.entries[k + 1]]; renderEntries(); updateBuilder(); } }),
+        mk('×', 'Remove', () => { G.entries.splice(k, 1); renderEntries(); updateBuilder(); }),
+      );
+      cy.addEventListener('input', () => { e.cy = cy.value; updateBuilder(); });
+      tag.addEventListener('change', () => { e.tag = tag.value; updateBuilder(); });
+      en.addEventListener('input', () => { e.en = en.value; updateBuilder(); });
+      row.append(cy, tag, en, acts);
+      box.append(row);
+    });
+    if (!G.entries.length) {
+      const p = document.createElement('p');
+      p.className = 'ed-hint';
+      p.textContent = 'No word lines yet: the tooltip will show just the translation. Add a word, or split a phrase into one line per word.';
+      box.append(p);
+    }
+  }
+  function renderNotes() {
+    const box = $('g-notes');
+    box.replaceChildren();
+    G.notes.forEach((n, k) => {
+      const row = document.createElement('div');
+      row.className = 'ed-note';
+      const input = document.createElement('input');
+      input.type = 'text'; input.className = 'ed-in'; input.value = n; input.lang = 'en';
+      input.setAttribute('aria-label', `Note ${k + 1}`);
+      input.addEventListener('input', () => { G.notes[k] = input.value; updateBuilder(); });
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'ed-mini'; del.textContent = '×'; del.setAttribute('aria-label', `Remove note ${k + 1}`);
+      del.addEventListener('click', () => { G.notes.splice(k, 1); renderNotes(); updateBuilder(); });
+      row.append(input, del);
+      box.append(row);
+    });
+  }
+  function updateBuilder() {
+    const g = glossObject();
+    const errors = E.validateGloss(g);
+    $('g-errors').textContent = errors.join(' ');
+    $('g-save').disabled = errors.length > 0;
+    $('g-markup').textContent = E.formatGloss(g);
+    const entries = g.entries.filter((e) => e.cy.length && e.en);
+    R.fillTooltip($('g-demo'), { dataset: {
+      tip: g.tip || '…', entries: entries.length ? JSON.stringify(entries) : '', note: g.notes.join('\n'),
+    } });
+  }
+
+  function saveBuilder() {
+    const g = glossObject();
+    if (E.validateGloss(g).length) return;
+    const { ctx } = G;
+    const item = items[ctx.row];
+    let raw;
+    if (ctx.mode === 'edit') raw = E.replaceGloss(item.cy, ctx.gi, g);
+    else {
+      const r = E.wrapSelection(item.cy, ctx.start, ctx.end, g);
+      if (r.error) { toast(r.error, true); return; }
+      raw = r.raw;
+    }
+    pushUndo();
+    item.cy = raw;
+    $('ed-gloss').close();
+    paintRowView(rowEl(ctx.row), item);
+    rowEl(ctx.row).querySelector('.ed-ta.cy').value = raw;
+    changed();
+    toast('Tooltip saved.');
+  }
+  function bindBuilder() {
+    $('g-surface').addEventListener('input', (e) => { G.surface = e.target.value; updateBuilder(); });
+    $('g-tip').addEventListener('input', (e) => { G.tip = e.target.value; updateBuilder(); });
+    $('g-addentry').addEventListener('click', () => { G.entries.push({ cy: '', tag: '', en: '' }); renderEntries(); updateBuilder(); const last = $('g-entries').querySelector('.ed-entry:last-of-type input'); if (last) last.focus(); });
+    $('g-split').addEventListener('click', () => {
+      const words = G.surface.trim().split(/\s+/).filter(Boolean);
+      for (const w of words) {
+        const lower = w.toLowerCase().replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+        if (lower && !G.entries.some((e) => e.cy.split(',')[0].trim() === lower)) G.entries.push({ cy: lower, tag: '', en: '' });
+      }
+      renderEntries();
+      updateBuilder();
+    });
+    $('g-addnote').addEventListener('click', () => { G.notes.push(''); renderNotes(); updateBuilder(); const last = $('g-notes').querySelector('.ed-note:last-of-type input'); if (last) last.focus(); });
+    for (const b of document.querySelectorAll('[data-mut]')) {
+      b.addEventListener('click', () => {
+        const lemma = G.entries[0] ? G.entries[0].cy.split(',')[0].trim() : '';
+        G.notes.push(`${b.dataset.mut} ${lemma}`.trim());
+        renderNotes();
+        updateBuilder();
+        const last = $('g-notes').querySelector('.ed-note:last-of-type input');
+        if (last) { last.focus(); last.setSelectionRange(last.value.length, last.value.length); }
+      });
+    }
+    $('g-save').addEventListener('click', saveBuilder);
+    $('g-cancel').addEventListener('click', () => $('ed-gloss').close());
+    $('g-remove').addEventListener('click', () => {
+      const { ctx } = G;
+      pushUndo();
+      items[ctx.row].cy = E.removeGloss(items[ctx.row].cy, ctx.gi);
+      $('ed-gloss').close();
+      paintRowView(rowEl(ctx.row), items[ctx.row]);
+      changed();
+      toast('Tooltip removed.');
+    });
+    $('g-form').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); if (!$('g-save').disabled) saveBuilder(); }
+    });
+  }
+
+  // ------------------------------------------------------------ paste dialog
+  const pasteOpts = () => ({
+    target: document.querySelector('input[name="p-target"]:checked').value,
+    mode: document.querySelector('input[name="p-mode"]:checked').value,
+    where: document.querySelector('input[name="p-where"]:checked').value,
+  });
+  function updatePasteCount() {
+    const o = pasteOpts();
+    const parsed = E.splitText($('p-text').value, o.mode);
+    const segs = parsed.filter((x) => x.kind === 'seg').length;
+    document.querySelectorAll('#p-where input').forEach((r) => { r.disabled = o.target === 'en'; });
+    $('p-count').textContent = segs
+      ? `Found ${segs} sentence${segs === 1 ? '' : 's'}${o.target === 'en' ? `; the article has ${items.filter((x) => x.kind === 'seg').length} sentence row(s).` : '.'}`
+      : 'Nothing to add yet.';
+    $('p-ok').disabled = !segs;
+  }
+  function applyPaste() {
+    const o = pasteOpts();
+    const parsed = E.splitText($('p-text').value, o.mode);
+    if (!parsed.length) return;
+    pushUndo();
+    if (o.target === 'cy') {
+      if (o.where === 'replace') items = parsed;
+      else {
+        if (items.length === 1 && !items[0].cy && !items[0].en) items = [];
+        items.push(...parsed);
+      }
+    } else {
+      const segs = items.filter((x) => x.kind === 'seg');
+      const heads = items.filter((x) => x.kind === 'heading');
+      let s = 0;
+      let h = 0;
+      for (const p of parsed) {
+        if (p.kind === 'heading') { if (heads[h]) heads[h].en = p.cy; h++; continue; }
+        if (segs[s]) segs[s].en = p.cy;
+        else items.push({ kind: 'seg', cy: '', en: p.cy, breakBefore: false });
+        s++;
+      }
+      const have = segs.length;
+      if (s !== have) toast(`English has ${s} sentences but there are ${have} rows. Check the rows marked in red.`, true);
+    }
+    $('ed-paste').close();
+    renderRows();
+    changed();
+  }
+
+  // ----------------------------------------------------------- refresh / checks
+  function validSlug() { return SLUG_RE.test(slug); }
+  function segCount() { return items.filter((x) => x.kind === 'seg' && x.cy.trim()).length; }
+  function timingsState() {
+    if (!timings) return null;
+    const ok = Array.isArray(timings) && timings.length === segCount() && timings.every((t, k) => typeof t === 'number' && (k === 0 || t > timings[k - 1]));
+    return { ok, n: Array.isArray(timings) ? timings.length : 0 };
+  }
+
+  function refresh() {
+    lastOut = E.serialize(meta, items);
+    const r = L.analyse({ md: lastOut.md, en: lastOut.en });
+    const perRow = items.map(() => []);
+    const general = [];
+    for (const issue of r.issues) {
+      const idx = (issue.file === 'article.md' ? lastOut.mdMap : lastOut.enMap)[issue.line];
+      if (idx !== undefined && idx !== null) perRow[idx].push(issue);
+      else general.push(issue);
+    }
+    // gaps the linter cannot see because the empty cell is simply left out of the file
+    const hasEn = items.some((x) => x.kind === 'seg' && x.en.trim());
+    items.forEach((it, i) => {
+      if (it.kind !== 'seg') return;
+      if (it.cy.trim() && !it.en.trim() && hasEn) perRow[i].push({ severity: 'warn', rule: 'missing-english', message: 'No English for this sentence yet.' });
+      if (!it.cy.trim() && it.en.trim()) perRow[i].push({ severity: 'error', rule: 'missing-welsh', message: 'English with no Welsh sentence.' });
+      if (!it.cy.trim() && !it.en.trim() && items.length > 1) perRow[i].push({ severity: 'info', rule: 'empty-row', message: 'Empty row: it will be left out.' });
+    });
+
+    // rows
+    const ol = $('ed-rows');
+    items.forEach((it, i) => {
+      const li = ol.children[i];
+      if (!li) return;
+      const msgs = perRow[i];
+      li.classList.toggle('has-error', msgs.some((m) => m.severity === 'error'));
+      li.classList.toggle('has-warn', !msgs.some((m) => m.severity === 'error') && msgs.some((m) => m.severity === 'warn'));
+      const ul = li.querySelector('.ed-msgs');
+      ul.replaceChildren(...msgs.slice(0, 4).map((m) => { const x = document.createElement('li'); x.className = m.severity; x.textContent = m.message; return x; }));
+      if (msgs.length > 4) { const x = document.createElement('li'); x.className = 'info'; x.textContent = `…and ${msgs.length - 4} more`; ul.append(x); }
+      paintRowHead(li, it, i);
+    });
+
+    // details messages, slug
+    $('m-msgs').replaceChildren(...general.filter((m) => m.file === 'article.md' && m.line < lastOut.bodyStartLine).map((m) => { const x = document.createElement('li'); x.className = m.severity; x.textContent = m.message; return x; }));
+    const sm = $('m-slug-msg');
+    if (!slug) sm.textContent = 'Needed: add a title and the name is generated for you.';
+    else if (!validSlug()) sm.textContent = 'Use lowercase letters, digits and hyphens only (no spaces or accents).';
+    else sm.textContent = `Will be saved as content/articles/${slug}/`;
+    sm.style.color = slug && !validSlug() ? 'var(--red)' : '';
+
+    // summary pill + checks list
+    const counts = { error: 0, warn: 0, info: 0 };
+    const all = [...r.issues];
+    for (const m of all) counts[m.severity]++;
+    items.forEach((it, i) => perRow[i].filter((m) => m.rule === 'missing-english' || m.rule === 'missing-welsh').forEach((m) => { counts[m.severity]++; }));
+    if (!slug || !validSlug()) counts.error++;
+    const pill = $('t-pill');
+    if (counts.error) { pill.className = 'ed-pill error'; pill.textContent = `${counts.error} error${counts.error === 1 ? '' : 's'}`; }
+    else if (counts.warn) { pill.className = 'ed-pill warn'; pill.textContent = `${counts.warn} warning${counts.warn === 1 ? '' : 's'}`; }
+    else { pill.className = 'ed-pill ok'; pill.textContent = '✓ Ready'; }
+    renderChecks(r, perRow);
+    renderPreview();
+    renderFiles(r);
+    scheduleSave();
+  }
+
+  function renderChecks(r, perRow) {
+    const ul = $('c-list');
+    ul.replaceChildren();
+    const rows = [];
+    r.issues.forEach((m) => {
+      const idx = (m.file === 'article.md' ? lastOut.mdMap : lastOut.enMap)[m.line];
+      rows.push({ m, idx: idx == null ? null : idx });
+    });
+    items.forEach((it, i) => perRow[i].filter((m) => m.rule === 'missing-english' || m.rule === 'missing-welsh').forEach((m) => rows.push({ m, idx: i })));
+    const rank = { error: 0, warn: 1, info: 2 };
+    rows.sort((a, b) => rank[a.m.severity] - rank[b.m.severity]);
+    $('c-summary').textContent = rows.length ? `${rows.length} thing${rows.length === 1 ? '' : 's'} to look at:` : 'No problems found.';
+    for (const { m, idx } of rows.slice(0, 40)) {
+      const li = document.createElement('li');
+      li.className = m.severity;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = idx == null ? 'Details' : (items[idx].kind === 'heading' ? 'Heading' : `Row ${items.slice(0, idx + 1).filter((x) => x.kind === 'seg').length}`);
+      b.addEventListener('click', () => {
+        if (idx == null) { $('d-details').open = true; $('d-details').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        else { setPane('edit'); const li2 = rowEl(idx); li2.scrollIntoView({ behavior: 'smooth', block: 'center' }); li2.querySelector('.ed-view').focus({ preventScroll: true }); }
+      });
+      li.append(b, m.message);
+      ul.append(li);
+    }
+  }
+
+  // ----------------------------------------------------------------- preview
+  let previewEn = false;
+  function renderPreview() {
+    const host = $('ed-preview');
+    const problems = [];
+    const body = lastOut.md.split('\n').slice(lastOut.bodyStartLine - 1).join('\n');
+    const { blocks } = L.parseBlocks(body, problems);
+    const segItems = items.filter((x) => x.kind === 'seg' && x.cy.trim());
+    const hasEn = segItems.some((x) => x.en.trim());
+    const enLines = hasEn ? segItems.map((x) => x.en) : null;
+    const badges = [];
+    if (meta.level && L.LEVEL_IDS.includes(meta.level)) badges.push(R.levelBadge(meta.level));
+    if (meta.dialect) badges.push(`<span class="badge badge-dialect">${R.esc(R.cap(meta.dialect))} dialect</span>`);
+    for (const t of meta.topics || []) badges.push(`<span class="badge badge-topic">${R.esc(t)}</span>`);
+    const hasGloss = blocks.some((b) => (b.parts || []).some((p) => p.surface));
+    host.className = `page-article${previewEn ? ' show-en' : ''}`;
+    host.innerHTML = `
+      <header class="article-head"><div class="wrap">
+        <h1 lang="cy">${R.esc(meta.title || 'Untitled')}</h1>
+        ${meta.title_en ? `<p class="subtitle" lang="en">${R.esc(meta.title_en)}</p>` : ''}
+        <div class="badges">${badges.join('')}</div>
+        ${meta.narrator ? `<p class="credits">Narrated by ${R.esc(meta.narrator)}</p>` : ''}
+      </div></header>
+      <div class="wrap">
+        <div class="toolbar">
+          ${enLines ? `<button type="button" class="toggle" id="pv-en" aria-pressed="${previewEn}"><span class="toggle-box" aria-hidden="true"></span> English</button>` : ''}
+          ${hasGloss ? '<p class="hint">Tap or hover a dotted word for its meaning.</p>' : ''}
+        </div>
+        <article class="text" id="pv-text">${R.renderBody(blocks, enLines)}</article>
+      </div>`;
+    if (previewEn) for (const el of host.querySelectorAll('.seg-en')) el.hidden = false;
+  }
+
+  function highlightPreview(item) {
+    const segs = items.filter((x) => x.kind === 'seg' && x.cy.trim());
+    const k = segs.indexOf(item);
+    for (const el of document.querySelectorAll('#ed-preview .seg.is-current')) el.classList.remove('is-current');
+    if (k < 0) return;
+    const el = document.querySelector(`#ed-preview .seg[data-i="${k}"]`);
+    if (el) { el.classList.add('is-current'); el.scrollIntoView({ block: 'nearest' }); }
+  }
+
+  function bindPreview() {
+    const host = $('ed-preview');
+    const tip = document.createElement('div');
+    tip.className = 'tooltip';
+    tip.hidden = true;
+    document.body.append(tip);
+    let cur = null;
+    const hide = () => { tip.hidden = true; cur = null; };
+    const show = (g) => {
+      cur = g;
+      R.fillTooltip(tip, g);
+      tip.hidden = false;
+      const r = g.getBoundingClientRect();
+      const t = tip.getBoundingClientRect();
+      let top = r.top - t.height - 8;
+      if (top < 8) top = r.bottom + 8;
+      tip.style.top = `${top}px`;
+      tip.style.left = `${Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), window.innerWidth - t.width - 8)}px`;
+    };
+    const gl = (t) => (t instanceof Element ? t.closest('.gloss') : null);
+    host.addEventListener('pointerover', (e) => { if (e.pointerType === 'mouse' && gl(e.target)) show(gl(e.target)); });
+    host.addEventListener('pointerout', (e) => { if (e.pointerType === 'mouse' && gl(e.target) && !gl(e.target).contains(e.relatedTarget)) hide(); });
+    host.addEventListener('click', (e) => {
+      const g = gl(e.target);
+      if (g) { if (cur === g && e.pointerType !== 'mouse') hide(); else show(g); return; }
+      const toggle = e.target.closest('#pv-en');
+      if (toggle) {
+        previewEn = !previewEn;
+        host.classList.toggle('show-en', previewEn);
+        toggle.setAttribute('aria-pressed', String(previewEn));
+        for (const el of host.querySelectorAll('.seg-en')) el.hidden = !previewEn;
+        return;
+      }
+      const seg = e.target.closest('.seg');
+      if (seg) {
+        const segs = items.map((x, i) => [x, i]).filter(([x]) => x.kind === 'seg' && x.cy.trim());
+        const hit = segs[Number(seg.dataset.i)];
+        if (hit) { setPane('edit'); const li = rowEl(hit[1]); li.scrollIntoView({ behavior: 'smooth', block: 'center' }); li.querySelector('.ed-view').focus({ preventScroll: true }); }
+      }
+    });
+    document.addEventListener('pointerdown', (e) => { if (cur && !gl(e.target)) hide(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  }
+
+  // -------------------------------------------------------------------- files
+  function renderFiles(r) {
+    const ul = $('x-files');
+    const li = (cls, text) => { const x = document.createElement('li'); x.className = cls; x.textContent = text; return x; };
+    const out = lastOut;
+    const t = timingsState();
+    ul.replaceChildren(
+      li(slug && validSlug() ? 'ok' : 'bad', slug && validSlug() ? `Folder: content/articles/${slug}/` : 'Folder name needed (see Details)'),
+      li('ok', `article.md · ${r.counts.cy} sentence${r.counts.cy === 1 ? '' : 's'}`),
+      out.en ? li(r.counts.en === r.counts.cy ? 'ok' : 'bad', `article.en.md · ${r.counts.en} line${r.counts.en === 1 ? '' : 's'}${r.counts.en === r.counts.cy ? '' : ' (should match the Welsh)'}`) : li('no', 'article.en.md · none yet (optional)'),
+      !t ? li('no', 'timings.json · none (make it with the sync tool, optional)')
+        : t.ok ? li('ok', `timings.json · ${t.n} entries, matches the sentences`)
+          : li('bad', `timings.json · ${t.n} entries but ${segCount()} sentences: left out of the zip, re-sync`),
+      audioFile ? li('ok', `${meta.audio || 'audio.mp3'} · ${(audioFile.size / 1048576).toFixed(1)} MB${audioFile.size > 10485760 ? ' (over 10 MB; consider 64 kbps mono)' : ''}${audioFile.name !== meta.audio ? ` (from ${audioFile.name})` : ''}`)
+        : li('no', `${meta.audio || 'audio.mp3'} · not attached (the build needs it in the folder)`),
+    );
+  }
+
+  function download(name, data, type) {
+    const blob = new Blob([data], { type: type || 'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  function errorsNow() {
+    const r = L.analyse({ md: lastOut.md, en: lastOut.en });
+    return r.issues.filter((i) => i.severity === 'error').length + (validSlug() ? 0 : 1);
+  }
+  function confirmExport() {
+    refreshNow();
+    if (!validSlug()) { toast('Give the article a valid folder name first (Details).', true); $('d-details').open = true; return false; }
+    const n = errorsNow();
+    return n === 0 || confirm(`There ${n === 1 ? 'is 1 error' : `are ${n} errors`} the build would reject. Download anyway?`);
+  }
+  async function zip() {
+    if (!confirmExport()) return;
+    const files = [{ name: `${slug}/article.md`, data: lastOut.md }];
+    if (lastOut.en) files.push({ name: `${slug}/article.en.md`, data: lastOut.en });
+    const t = timingsState();
+    if (t && t.ok) files.push({ name: `${slug}/timings.json`, data: `${JSON.stringify(timings)}\n` });
+    if (audioFile) files.push({ name: `${slug}/${meta.audio || 'audio.mp3'}`, data: new Uint8Array(await audioFile.arrayBuffer()) });
+    download(`${slug}.zip`, E.makeZip(files), 'application/zip');
+    dirty = false;
+    toast(`Downloaded ${slug}.zip. Unzip it into content/articles/.`);
+  }
+  function refreshNow() { clearTimeout(timer); refresh(); }
+
+  // -------------------------------------------------------------- open / new
+  async function openFiles(list) {
+    const files = [...list];
+    let md = null;
+    let en = null;
+    let tm = null;
+    let audio = null;
+    let folder = '';
+    for (const f of files) {
+      const name = f.name.toLowerCase();
+      if (f.webkitRelativePath) folder = f.webkitRelativePath.split('/')[0];
+      if (name.endsWith('.en.md')) en = f;
+      else if (name === 'article.md' || (name.endsWith('.md') && !md)) md = f;
+      else if (name === 'timings.json') tm = f;
+      else if (/\.(mp3|m4a|aac|ogg|wav)$/.test(name) || f.type.startsWith('audio/')) audio = f;
+    }
+    if (!md) { toast('No article.md found in that selection.', true); return; }
+    if (dirty && !confirm('Replace what you are editing? (You can undo this.)')) return;
+    const parsed = E.parseArticle({ md: await md.text(), en: en ? await en.text() : '' });
+    pushUndo();
+    meta = parsed.meta;
+    items = parsed.items;
+    timings = null;
+    if (tm) { try { timings = JSON.parse(await tm.text()); } catch (e) { toast('timings.json is not valid JSON; ignored.', true); } }
+    audioFile = audio;
+    if (audio && !meta.audio) meta.audio = audio.name;
+    if (!meta.audio) meta.audio = 'audio.mp3';
+    if (folder && SLUG_RE.test(folder)) { slug = folder; slugAuto = false; } else { slugAuto = true; slug = ''; autoSlug(); }
+    syncForm();
+    renderRows();
+    dirty = false;
+    refreshNow();
+    toast(parsed.problems.length ? `Opened, with notes: ${parsed.problems.join(' ')}` : `Opened ${items.filter((x) => x.kind === 'seg').length} sentences.`, parsed.problems.length > 0);
+  }
+
+  function newArticle() {
+    if (dirty && !confirm('Start a new article? (You can undo this.)')) return;
+    pushUndo();
+    meta = E.newMeta();
+    items = [E.newItem()];
+    slug = '';
+    slugAuto = true;
+    audioFile = null;
+    timings = null;
+    store.del(DRAFT_KEY);
+    syncForm();
+    renderRows();
+    dirty = false;
+    refreshNow();
+    $('m-title').focus();
+  }
+
+  function undo() {
+    const s = undoStack.pop();
+    if (!s) return;
+    loadSnapshot(s);
+    syncForm();
+    renderRows();
+    $('b-undo').disabled = undoStack.length === 0;
+    dirty = true;
+    refreshNow();
+  }
+
+  // ------------------------------------------------------------ draft backup
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const empty = !meta.title && items.every((x) => !x.cy && !x.en);
+      if (!empty) store.set(DRAFT_KEY, JSON.stringify({ snapshot: snapshot(), at: Date.now() }));
+    }, 800);
+  }
+  function offerDraft() {
+    const raw = store.get(DRAFT_KEY);
+    if (!raw) return;
+    let d;
+    try { d = JSON.parse(raw); } catch (e) { return; }
+    if (!d.snapshot) return;
+    $('ed-banner-text').textContent = `You have an unsaved draft from ${new Date(d.at).toLocaleString()}.`;
+    $('ed-banner').style.display = 'block';
+    $('b-restore').onclick = () => {
+      loadSnapshot(d.snapshot);
+      syncForm(); renderRows(); $('ed-banner').style.display = 'none'; dirty = true; refreshNow();
+    };
+    $('b-discard').onclick = () => { store.del(DRAFT_KEY); $('ed-banner').style.display = 'none'; };
+  }
+
+  // ------------------------------------------------------------------ wiring
+  function setPane(p) {
+    $('ed-main').dataset.pane = p;
+    $('p-edit').setAttribute('aria-pressed', String(p === 'edit'));
+    $('p-preview').setAttribute('aria-pressed', String(p === 'preview'));
+  }
+
+  function init() {
+    fillLevelSelect();
+    bindForm();
+    bindRows();
+    bindBuilder();
+    bindPreview();
+    syncForm();
+    renderRows();
+    $('b-new').addEventListener('click', newArticle);
+    $('b-undo').addEventListener('click', undo);
+    $('b-zip').addEventListener('click', zip);
+    $('b-md').addEventListener('click', () => { if (confirmExport()) download('article.md', lastOut.md, 'text/markdown'); });
+    $('b-en').addEventListener('click', () => {
+      if (!confirmExport()) return;
+      if (!lastOut.en) { toast('There is no English yet.', true); return; }
+      download('article.en.md', lastOut.en, 'text/markdown');
+    });
+    $('f-folder').addEventListener('change', (e) => { openFiles(e.target.files); e.target.value = ''; });
+    $('f-files').addEventListener('change', (e) => { openFiles(e.target.files); e.target.value = ''; });
+    $('f-audio').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      audioFile = f;
+      if (!meta.audio || meta.audio === 'audio.mp3') meta.audio = /\.mp3$/i.test(f.name) ? 'audio.mp3' : f.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+      $('m-audio').value = meta.audio;
+      e.target.value = '';
+      changed();
+    });
+    $('b-paste').addEventListener('click', () => { $('p-text').value = ''; updatePasteCount(); $('ed-paste').showModal(); $('p-text').focus(); });
+    $('p-text').addEventListener('input', updatePasteCount);
+    for (const r of document.querySelectorAll('#ed-paste input[type="radio"]')) r.addEventListener('change', updatePasteCount);
+    $('p-cancel').addEventListener('click', () => $('ed-paste').close());
+    $('p-ok').addEventListener('click', applyPaste);
+    $('p-edit').addEventListener('click', () => setPane('edit'));
+    $('p-preview').addEventListener('click', () => setPane('preview'));
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files.length) openFiles(e.dataTransfer.files); });
+    window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.querySelector('dialog[open]')) { e.preventDefault(); undo(); }
+    });
+    refreshNow();
+    offerDraft();
+  }
+  init();
+})();
+  </script>
+</body>
+</html>
