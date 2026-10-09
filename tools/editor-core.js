@@ -10,7 +10,7 @@
 }(typeof self !== 'undefined' ? self : this, function (lint) {
   'use strict';
 
-  const META_ORDER = ['title', 'title_en', 'level', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
+  const META_ORDER = ['title', 'title_en', 'level', 'type', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
   const ABBREVIATIONS = new Set(['mr', 'mrs', 'ms', 'dr', 'st', 'prof', 'rev', 'etc', 'vs', 'cf', 'no']);
 
   const oneLine = (s) => String(s == null ? '' : s).replace(/\s*\n\s*/g, ' ').trim();
@@ -32,7 +32,7 @@
 
   function newMeta() {
     return {
-      title: '', title_en: '', level: '', topics: [], series: '', part: '', part_label: '', date: today(), summary: '', audio: 'audio.mp3',
+      title: '', title_en: '', level: '', type: '', topics: [], series: '', part: '', part_label: '', date: today(), summary: '', audio: 'audio.mp3',
       narrator: '', dialect: '', source: '', licence: '', draft: false, extra: {},
     };
   }

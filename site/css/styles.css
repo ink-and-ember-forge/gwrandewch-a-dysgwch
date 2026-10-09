@@ -316,3 +316,6 @@ kbd {
   .chapters li { grid-template-columns: 1fr; }
   .chapters .ch-link { grid-template-columns: 4.5em 1fr; }
 }
+
+/* article type (news article, short story, song …) */
+.badge-type { background: var(--accent-soft); border-color: transparent; color: var(--ink); font-weight: 600; }

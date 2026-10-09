@@ -2,6 +2,7 @@
 title: Ydy tyrbinau gwynt yn ddiogel i adar
 title_en: Are wind turbines safe for birds?
 level: sylfaen
+type: news
 topics: [science, energy, news]
 date: 2026-10-09
 summary: A news article about wind turbines and birds.

@@ -19,8 +19,21 @@
     ['hyfedredd', 'Proficiency'],
   ];
   const LEVEL_IDS = LEVELS.map((l) => l[0]);
+  // What kind of piece an article is. THE one place to add a type: the build, the editor's
+  // dropdown, the home page filter and the badges all read this list (id used in `type:`, label shown).
+  const TYPES = [
+    ['news', 'News article'],
+    ['article', 'Article'],
+    ['story', 'Short story'],
+    ['poem', 'Poem'],
+    ['song', 'Song'],
+    ['dialogue', 'Dialogue'],
+    ['podcast', 'Podcast'],
+    ['video', 'Video'],
+  ];
+  const TYPE_IDS = TYPES.map((t) => t[0]);
   const DIALECTS = ['north', 'south', 'neutral'];
-  const KNOWN_KEYS = ['title', 'title_en', 'level', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
+  const KNOWN_KEYS = ['title', 'title_en', 'level', 'type', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
   // content/series/<slug>.md: the optional page for a series (a book, a course) whose chapters are articles
   const SERIES_KEYS = ['title', 'title_en', 'summary', 'author', 'publisher', 'edition', 'licence', 'url'];
   const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -176,11 +189,14 @@
     for (const key of Object.keys(meta)) {
       if (!KNOWN_KEYS.includes(key)) out.push({ severity: 'warn', message: `unknown frontmatter field "${key}"` });
     }
-    for (const key of ['title', 'level', 'date', 'summary']) {
+    for (const key of ['title', 'level', 'type', 'date', 'summary']) {
       if (!meta[key] || typeof meta[key] !== 'string') bad(`missing required frontmatter field "${key}"`);
     }
     if (typeof meta.level === 'string' && meta.level && !LEVEL_IDS.includes(meta.level)) {
       bad(`level "${meta.level}" is not one of: ${LEVEL_IDS.join(', ')}`);
+    }
+    if (typeof meta.type === 'string' && meta.type && !TYPE_IDS.includes(meta.type)) {
+      bad(`type "${meta.type}" is not one of: ${TYPE_IDS.join(', ')}`);
     }
     if (typeof meta.date === 'string' && meta.date) {
       const d = new Date(`${meta.date}T00:00:00Z`);
@@ -532,7 +548,7 @@
   }
 
   return {
-    LEVELS, LEVEL_IDS, DIALECTS, KNOWN_KEYS, SERIES_KEYS, SLUG_RE, MAX_SEGMENT_CHARS, TAGS, GENDER_TAGS,
+    LEVELS, LEVEL_IDS, TYPES, TYPE_IDS, DIALECTS, KNOWN_KEYS, SERIES_KEYS, SLUG_RE, MAX_SEGMENT_CHARS, TAGS, GENDER_TAGS,
     normalise, parseFrontmatter, parseEntry, parseInline, parseBlocks, plainText, isHeading, validateMeta, validateSeriesMeta, checkSeriesSet, scanBody, analyse,
   };
 }));

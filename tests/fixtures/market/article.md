@@ -2,6 +2,7 @@
 title: Diwrnod yn y farchnad
 title_en: A day at the market
 level: sylfaen
+type: news
 topics: [food, shopping]
 date: 2026-10-09
 summary: A short piece about a busy Saturday morning at the market.

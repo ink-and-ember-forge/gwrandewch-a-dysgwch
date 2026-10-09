@@ -153,6 +153,7 @@
         <div class="ed-form">
           <label>Title (Welsh) <input type="text" id="m-title" lang="cy" autocomplete="off"></label>
           <label>Title (English, optional) <input type="text" id="m-title_en" lang="en" autocomplete="off"></label>
+          <label>Type of piece <select id="m-type"></select></label>
           <label>Level <select id="m-level"></select></label>
           <label>Date <input type="date" id="m-date"></label>
           <label class="wide">Summary (one or two sentences, shown on the card) <textarea id="m-summary" lang="en" rows="2"></textarea></label>
@@ -366,6 +367,11 @@
   const FIELDS = ['title', 'title_en', 'date', 'summary', 'dialect', 'series', 'part', 'part_label', 'narrator', 'source', 'licence', 'audio'];
   const SERIES_FIELDS = ['title', 'title_en', 'summary', 'author', 'publisher', 'edition', 'licence', 'url'];
   const SERIES_KEY = 'gad-editor-series';
+  function fillTypeSelect() {
+    const sel = $('m-type');
+    sel.replaceChildren(new Option('Choose a type…', ''));
+    for (const [id, label] of L.TYPES) sel.append(new Option(label, id));
+  }
   function fillLevelSelect() {
     const sel = $('m-level');
     sel.replaceChildren(new Option('Choose a level…', ''));
@@ -374,6 +380,7 @@
   function syncForm() {
     for (const k of FIELDS) $(`m-${k}`).value = meta[k] || '';
     $('m-level').value = meta.level || '';
+    $('m-type').value = meta.type || '';
     $('m-topics').value = (meta.topics || []).join(', ');
     $('m-draft').checked = !!meta.draft;
     $('m-slug').value = slug;
@@ -425,6 +432,7 @@
       toast(parsed.problems.length ? `Opened, with notes: ${parsed.problems.join(' ')}` : 'Series page opened.', parsed.problems.length > 0);
     });
     $('m-level').addEventListener('change', (e) => { meta.level = e.target.value; changed(); });
+    $('m-type').addEventListener('change', (e) => { meta.type = e.target.value; changed(); });
     $('m-draft').addEventListener('change', (e) => { meta.draft = e.target.checked; changed(); });
     $('m-topics').addEventListener('input', (e) => {
       meta.topics = e.target.value.split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
@@ -1045,6 +1053,7 @@
     const hasEn = segItems.some((x) => x.en.trim());
     const enLines = hasEn ? segItems.map((x) => x.en) : null;
     const badges = [];
+    if (meta.type) badges.push(R.typeBadge(meta.type));
     if (meta.level && L.LEVEL_IDS.includes(meta.level)) badges.push(R.levelBadge(meta.level));
     if (meta.dialect) badges.push(`<span class="badge badge-dialect">${R.esc(R.cap(meta.dialect))} dialect</span>`);
     for (const t of meta.topics || []) badges.push(`<span class="badge badge-topic">${R.esc(t)}</span>`);
@@ -1289,6 +1298,7 @@
   }
 
   function init() {
+    fillTypeSelect();
     fillLevelSelect();
     fillSeriesList();
     bindForm();

@@ -42,7 +42,7 @@ for (const slug of ['wind-turbines', 'market']) {
 
 test('serialize: paragraph breaks, headings and the line map', () => {
   const meta = E.newMeta();
-  Object.assign(meta, { title: 'T', level: 'sylfaen', summary: 'S', date: '2026-01-01' });
+  Object.assign(meta, { title: 'T', level: 'sylfaen', type: 'news', summary: 'S', date: '2026-01-01' });
   const items = [
     { kind: 'seg', cy: 'Un.', en: 'One.', breakBefore: false },
     { kind: 'seg', cy: 'Dau.', en: 'Two.', breakBefore: true },
@@ -59,7 +59,7 @@ test('serialize: paragraph breaks, headings and the line map', () => {
 });
 
 test('serialize: newlines in cells are flattened and an empty English cell is skipped', () => {
-  const meta = Object.assign(E.newMeta(), { title: 'T', level: 'sylfaen', summary: 'S', date: '2026-01-01' });
+  const meta = Object.assign(E.newMeta(), { title: 'T', level: 'sylfaen', type: 'news', summary: 'S', date: '2026-01-01' });
   const out = E.serialize(meta, [
     { kind: 'seg', cy: 'Un\ndau.', en: 'One.', breakBefore: false },
     { kind: 'seg', cy: 'Tri.', en: '', breakBefore: false },
@@ -71,7 +71,7 @@ test('serialize: newlines in cells are flattened and an empty English cell is sk
 });
 
 test('serialize: unknown frontmatter keys survive; optional empties are omitted', () => {
-  const md = '---\ntitle: T\nlevel: uwch\ndate: 2026-01-01\nsummary: S\ncolour: green\n---\nUn.\n';
+  const md = '---\ntitle: T\nlevel: uwch\ntype: poem\ndate: 2026-01-01\nsummary: S\ncolour: green\n---\nUn.\n';
   const { meta, items } = E.parseArticle({ md });
   assert.deepEqual(meta.extra, { colour: 'green' });
   const out = E.serialize(meta, items);

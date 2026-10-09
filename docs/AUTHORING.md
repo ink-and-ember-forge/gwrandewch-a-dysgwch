@@ -6,7 +6,7 @@ Add a folder under `content/articles/`, push to `main`, and the site rebuilds it
 
 Open **`tools/editor.html`** (at `<site>/tools/editor.html`, or straight from your clone). Nothing is uploaded; it runs in your browser.
 
-1. **Details:** title, level, date, summary, topics. The folder name is generated from the title.
+1. **Details:** title, type, level, date, summary, topics. The folder name is generated from the title.
 2. **Sentences:** paste your Welsh (*Paste text…*) and it is split into one row per sentence, then paste the English the same way to fill the English column. Each row is a Welsh/English pair, so the two files cannot get out of step. Add, split (<kbd>Enter</kbd>), merge, move and delete rows; <kbd>¶</kbd> starts a new paragraph and <kbd>H</kbd> makes a `##` heading.
 3. **Tooltips:** select words in a Welsh sentence (drag or double-click) and press <kbd>G</kbd> or *Add tooltip*. The builder takes the bold translation, one line per word (Welsh forms, tag, English), and notes, with mutation shortcuts and a live preview of the tooltip. Click a dotted word to edit it.
 4. **Check:** the preview is the real article page (English toggle, tooltips), and the Checks panel runs the same rules as the build against the files it will write.
@@ -43,7 +43,20 @@ Bore dydd Sadwrn, es i i'r {{farchnad|market|marchnad, marchnadoedd, eb = market
 Roedd hi'n brysur iawn.
 ```
 
-**Frontmatter.** Required: `title`, `level`, `date` (YYYY-MM-DD), `summary`, `audio`. `level` is one of `mynediad`, `sylfaen`, `canolradd`, `uwch`, `hyfedredd`. Optional: `title_en`, `topics` (lowercase tags), `series`, `part` and `part_label` (see [Series](#series-chapters-of-a-book-or-course)), `narrator`, `dialect` (`north`, `south`, `neutral`), `source`, `licence`, and `draft: true` to keep it off the site.
+**Frontmatter.** Required: `title`, `level`, `type`, `date` (YYYY-MM-DD), `summary`, `audio`. `level` is one of `mynediad`, `sylfaen`, `canolradd`, `uwch`, `hyfedredd`. `type` is what kind of piece it is:
+
+| `type:` | Shown as |
+|---|---|
+| `news` | News article |
+| `article` | Article |
+| `story` | Short story |
+| `poem` | Poem |
+| `song` | Song |
+| `dialogue` | Dialogue |
+| `podcast` | Podcast |
+| `video` | Video |
+
+Type describes the *piece* (so a book's chapters can differ: a dialogue, then a song), while topics say what it is *about* and level says how hard it is. It shows as a badge on the card, article page and series chapter list, has its own filter on the home page (`?type=song`), and can be searched. **To add a new type**, add one line to `TYPES` near the top of `tools/lint-core.js` (`['letter', 'Letter or email']`): the build, the editor's dropdown, the filter and the badges all read that one list. Optional: `title_en`, `topics` (lowercase tags), `series`, `part` and `part_label` (see [Series](#series-chapters-of-a-book-or-course)), `narrator`, `dialect` (`north`, `south`, `neutral`), `source`, `licence`, and `draft: true` to keep it off the site.
 
 **One line = one sentence.** Never hard-wrap. A blank line starts a new paragraph. `## Heading` lines are headings and are not timed.
 

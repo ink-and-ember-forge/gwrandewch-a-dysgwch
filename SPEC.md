@@ -99,6 +99,7 @@ Restricted YAML subset (flat `key: value`, plus inline lists `[a, b]`) so the bu
 | `title` | yes | Welsh title |
 | `title_en` | no | English title, shown on cards and under the heading |
 | `level` | yes | One of `mynediad`, `sylfaen`, `canolradd`, `uwch`, `hyfedredd` (Entry, Foundation, Intermediate, Advanced, Proficiency). Lowercase in frontmatter; displayed capitalised, with the English name as a secondary label. Order is fixed in that sequence for filters and badges. |
+| `type` | yes | What kind of piece it is: one of `news`, `article`, `story`, `poem`, `song`, `dialogue`, `podcast`, `video` (shown as News article, Article, Short story, …). The list lives in one place, `TYPES` in `tools/lint-core.js`; everything else reads it |
 | `topics` | no | List, e.g. `[food, shopping]`; lowercase tags |
 | `series` | no | Series this article is a chapter of: lowercase slug, the same for every chapter (section 4.8) |
 | `part` | with `series` | Whole number from 1: the chapter's position. Unique within a series; required with `series`, and `series` is required with it |
@@ -252,12 +253,12 @@ Sorting: newest `date` first, ties broken by title.
 ### 7.1 Home page
 - Header with site title and a one-line description
 - **Search box:** client-side, over title, English title, summary and body text. Matching is **diacritic- and case-insensitive**, so `wy` finds *ŵy* and `cymraeg` finds *Cymraeg*.
-- **Filter chips:** level (multi-select) and topic (multi-select). Active filters are reflected in the URL (`?level=sylfaen&topic=food&q=bara`) so views are shareable and the back button works.
-- **Article cards:** title, English title, level badge, topic tags, summary, duration, small icons for "has English" and "synced". Newest first.
+- **Filter chips:** series, type, level and topic (each multi-select). Active filters are reflected in the URL (`?type=song&level=sylfaen&topic=food&q=bara`) so views are shareable and the back button works.
+- **Article cards:** title, English title, type badge, level badge, topic tags, summary, duration, small icons for "has English" and "synced". Newest first.
 - Empty-state message when filters match nothing.
 
 ### 7.2 Article page
-- Title, English title, level and topic badges, narrator/source credits
+- Title, English title, type, level and topic badges, narrator/source credits
 - **Text column:** readable measure (~65ch), generous line height, `lang="cy"`
 - **Sticky audio bar:** play/pause, scrubber with elapsed/total time, speed (0.6x, 0.75x, 1x, 1.25x), previous/next sentence
 - **Sentence sync** (when `timings.json` exists):

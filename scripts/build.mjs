@@ -16,10 +16,10 @@ const ROOT = process.env.GAD_ROOT ? resolve(process.env.GAD_ROOT) : resolve(dirn
 // Parsing and metadata rules are shared with the linter so the two never disagree.
 const require = createRequire(import.meta.url);
 const {
-  LEVELS, MAX_SEGMENT_CHARS, SLUG_RE, parseFrontmatter, parseBlocks, isHeading, validateMeta, validateSeriesMeta, checkSeriesSet,
+  LEVELS, TYPES, MAX_SEGMENT_CHARS, SLUG_RE, parseFrontmatter, parseBlocks, isHeading, validateMeta, validateSeriesMeta, checkSeriesSet,
 } = require('../tools/lint-core.js');
 const {
-  esc, cap, chapterLabel, renderInline, plainInline, renderBody, levelBadge,
+  esc, cap, chapterLabel, renderInline, plainInline, renderBody, levelBadge, typeBadge, typeLabel,
 } = require('../tools/render-core.js');
 const CONTENT = join(ROOT, 'content', 'articles');
 const CONTENT_SERIES = join(ROOT, 'content', 'series');
@@ -192,6 +192,7 @@ function loadArticle(slug) {
       title: meta.title,
       title_en: meta.title_en || '',
       level: meta.level,
+      type: meta.type,
       topics,
       series: meta.series || '',
       part: meta.series ? Number(meta.part) : 0,
@@ -262,6 +263,7 @@ function buildSeries(articles, drafts, files) {
     g.meta = file ? file.meta : Object.fromEntries(SERIES_TEXT_KEYS.map((k) => [k, k === 'title' ? titleize(g.slug) : '']));
     g.levels = LEVELS.map(([id]) => id).filter((id) => g.chapters.some((c) => c.meta.level === id));
     g.topics = [...new Set(g.chapters.flatMap((c) => c.meta.topics))].sort();
+    g.types = TYPES.map(([id]) => id).filter((id) => g.chapters.some((c) => c.meta.type === id));
     g.date = g.chapters.map((c) => c.meta.date).sort().pop();
     const durations = g.chapters.map((c) => c.duration).filter((d) => d != null);
     g.duration = durations.length ? Math.round(durations.reduce((x, y) => x + y, 0) * 100) / 100 : null;
@@ -275,7 +277,7 @@ const chLabel = (a) => chapterLabel(a.meta.part, a.meta.part_label);
 
 function renderArticle(a, tpl, nav) {
   const m = a.meta;
-  const badges = [levelBadge(m.level)];
+  const badges = [typeBadge(m.type), levelBadge(m.level)];
   if (m.dialect) badges.push(`<span class="badge badge-dialect">${esc(cap(m.dialect))} dialect</span>`);
   for (const t of m.topics) badges.push(`<span class="badge badge-topic">${esc(t)}</span>`);
 
@@ -331,10 +333,10 @@ function renderSeries(g, tpl) {
   const first = g.chapters[0];
   const items = g.chapters.map((c) => `<li data-slug="${c.slug}">
   <a class="ch-link" href="../../articles/${c.slug}/"><span class="ch-label">${esc(chLabel(c))}</span><span class="ch-title" lang="cy">${esc(c.meta.title)}</span>${c.meta.title_en ? `<span class="ch-en" lang="en">${esc(c.meta.title_en)}</span>` : ''}</a>
-  <span class="ch-meta">${esc(cap(c.meta.level))}${c.duration ? ` · ${fmtTime(c.duration)}` : ''}</span>
+  <span class="ch-meta">${esc(typeLabel(c.meta.type))} · ${esc(cap(c.meta.level))}${c.duration ? ` · ${fmtTime(c.duration)}` : ''}</span>
   <span class="read-mark"></span>
 </li>`).join('\n');
-  const badges = g.levels.map(levelBadge).concat(g.topics.map((t) => `<span class="badge badge-topic">${esc(t)}</span>`));
+  const badges = g.types.map(typeBadge).concat(g.levels.map(levelBadge)).concat(g.topics.map((t) => `<span class="badge badge-topic">${esc(t)}</span>`));
   return fill(tpl, {
     site_title: SITE_TITLE,
     title: g.meta.title,
@@ -468,6 +470,7 @@ function main() {
       title: a.meta.title,
       title_en: a.meta.title_en,
       level: a.meta.level,
+      type: a.meta.type,
       dialect: a.meta.dialect,
       topics: a.meta.topics,
       series: a.meta.series,
@@ -478,7 +481,7 @@ function main() {
       duration: a.duration,
       has_sync: !!a.timings,
       has_english: !!a.enLines,
-      search: fold([a.meta.title, a.meta.title_en, a.meta.summary, a.meta.topics.join(' '), ...seriesText, a.bodyText, a.enText].join(' ')),
+      search: fold([a.meta.title, a.meta.title_en, a.meta.summary, typeLabel(a.meta.type), a.meta.topics.join(' '), ...seriesText, a.bodyText, a.enText].join(' ')),
     };
   });
   const seriesIndex = [...groups.values()].map((g) => ({
@@ -492,14 +495,15 @@ function main() {
     licence: g.meta.licence,
     url: g.meta.url,
     levels: g.levels,
+    types: g.types,
     topics: g.topics,
     date: g.date,
     duration: g.duration,
     count: g.chapters.length,
-    chapters: g.chapters.map((c) => ({ slug: c.slug, part: c.meta.part, label: chLabel(c), title: c.meta.title, title_en: c.meta.title_en, level: c.meta.level, duration: c.duration })),
+    chapters: g.chapters.map((c) => ({ slug: c.slug, part: c.meta.part, label: chLabel(c), title: c.meta.title, title_en: c.meta.title_en, level: c.meta.level, type: c.meta.type, duration: c.duration })),
   })).sort((x, y) => y.date.localeCompare(x.date) || x.title.localeCompare(y.title, 'cy'));
   mkdirSync(join(DIST, 'data'), { recursive: true });
-  const json = JSON.stringify({ levels: LEVELS.map(([id, en]) => ({ id, en })), articles: index, series: seriesIndex });
+  const json = JSON.stringify({ levels: LEVELS.map(([id, en]) => ({ id, en })), types: TYPES.map(([id, label]) => ({ id, label })), articles: index, series: seriesIndex });
   writeFileSync(join(DIST, 'data', 'index.json'), json);
   if (json.length > 1_000_000) warn('data/index.json', `is ${(json.length / 1e6).toFixed(1)} MB; consider splitting search data`);
 
