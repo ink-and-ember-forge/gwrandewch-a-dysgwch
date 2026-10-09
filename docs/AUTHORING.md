@@ -27,7 +27,7 @@ summary: A short piece about a busy Saturday morning at the market.
 audio: audio.mp3
 ---
 
-Bore dydd Sadwrn, es i i'r {{farchnad|market|soft mutation of marchnad after i'r}} yng Nghaerdydd.
+Bore dydd Sadwrn, es i i'r {{farchnad|market|marchnad, marchnadoedd, eb = market|note: soft mutation of marchnad after i'r}} yng Nghaerdydd.
 Roedd hi'n brysur iawn.
 ```
 
@@ -35,7 +35,39 @@ Roedd hi'n brysur iawn.
 
 **One line = one sentence.** Never hard-wrap. A blank line starts a new paragraph. `## Heading` lines are headings and are not timed.
 
-**Glosses.** `{{word|translation}}` or `{{word|translation|note}}`. Phrases work (`{{ar y gair|nearby}}`). Escape a literal `{{` as `\{{`. No nesting, no line breaks inside.
+**Glosses (tooltips).** `{{surface|translation|entry|entry|…|note: …}}`
+
+- `surface`: the word or phrase exactly as written in the text (no tags in it).
+- `translation`: the bold top line, the meaning of *this use* in the sentence.
+- `entry`, one per word, each on its own tooltip line: `Welsh forms, tag = English`.
+- notes: a field with no `=` (or starting `note:`) is a smaller grey line, good for mutations.
+
+```
+{{tyrbinau gwynt|wind turbines|tyrbin, tyrbinau, eg = turbine|gwynt, eg = wind}}
+{{farchnad|market|marchnad, marchnadoedd, eb = market|note: soft mutation after i'r}}
+{{ddiogel|safe|diogel, adj = safe}}
+```
+
+shows, for the first one:
+
+```
+wind turbines
+tyrbin, tyrbinau (eg) – turbine (m)
+gwynt (eg) – wind (m)
+```
+
+Type the gender **once per word**, on the Welsh side; the English `(m)`/`(f)` is added for you, so they cannot disagree. Singular first, then plural; English is singular.
+
+| Tag | Meaning | Shown |
+|---|---|---|
+| `eg` | masculine noun | `(eg)` … `(m)` in blue |
+| `eb` | feminine noun | `(eb)` … `(f)` in red |
+| `egb` | either gender | `(egb)` … `(m/f)` in purple |
+| `adj` `verb` `prep` `adv` `conj` `pron` | word type | neutral grey tag |
+
+The Welsh dictionary abbreviations `ans`, `be`/`bf`, `ardd`, `adf`, `cys`, `rhag` also work. Colour is never the only signal: the letters are always shown. The checker flags `(m)`/`(f)` typed by hand, and the build warns if one headword is tagged with different genders in different articles.
+
+Phrases work (`{{ar y gair|nearby}}`). Escape a literal `{{` as `\{{`. No nesting, no line breaks inside.
 
 ## 3. English (optional)
 

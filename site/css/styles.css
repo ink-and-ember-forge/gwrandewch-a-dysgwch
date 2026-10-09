@@ -14,6 +14,11 @@
   --hl-edge: #b07400;
   --tip-bg: #1d2a24;
   --tip-ink: #f4f1e8;
+  /* gender / type tags drawn on the tooltip background (AA on --tip-bg) */
+  --tag-m: #8fc4ff;
+  --tag-f: #ff9aa5;
+  --tag-b: #d0aaff;
+  --tag-t: #cdd8d1;
   --shadow: 0 1px 2px rgba(20, 30, 25, .08), 0 4px 14px rgba(20, 30, 25, .06);
   --serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -36,6 +41,10 @@
     --hl-edge: #f0c040;
     --tip-bg: #eaf0ea;
     --tip-ink: #111915;
+    --tag-m: #1b5aa6;
+    --tag-f: #b3202b;
+    --tag-b: #6a3a9f;
+    --tag-t: #46544c;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .3);
   }
 }
@@ -217,7 +226,16 @@ kbd {
 }
 .tooltip[hidden] { display: none; }
 .tooltip strong { display: block; font-weight: 700; }
-.tooltip small { display: block; margin-top: .15rem; font-size: .8rem; opacity: .85; }
+.tooltip small { display: block; margin-top: .25rem; font-size: .8rem; opacity: .85; }
+.tip-entries { margin-top: .35rem; padding-top: .3rem; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); display: grid; gap: .15rem; }
+.tip-entry { line-height: 1.35; }
+.tip-cy { font-weight: 600; }
+.tip-sep { opacity: .6; }
+.tag { display: inline-block; padding: 0 .3em; border: 1px solid currentColor; border-radius: 4px; font-size: .75em; font-weight: 700; line-height: 1.4; vertical-align: .05em; white-space: nowrap; cursor: default; }
+.tag-m { color: var(--tag-m); }
+.tag-f { color: var(--tag-f); }
+.tag-b { color: var(--tag-b); }
+.tag-t { color: var(--tag-t); font-weight: 500; }
 
 /* -------------------------------------------------------------- player */
 

@@ -111,13 +111,28 @@ Restricted YAML subset (flat `key: value`, plus inline lists `[a, b]`) so the bu
 
 ```
 {{surface text|translation}}
-{{surface text|translation|note}}
+{{surface text|translation|word entry|word entry|…|note: free text}}
 ```
 
-- **Surface text** can be a single word or a multi-word phrase (idioms: `{{ar y gair|nearby}}`).
-- **Translation** is what appears in bold in the tooltip; **note** is optional smaller text, ideal for mutation and grammar hints.
+- **Surface text** is the word or phrase exactly as it appears in the article (single words, idioms: `{{ar y gair|nearby}}`). Never put tags or grammar in it; it is displayed in the text.
+- **Translation** is the bold top line of the tooltip: the direct translation of *this use* in the text (`wind turbines`, not the dictionary headword).
+- **Word entry** (zero or more): one tooltip line per word, written `Welsh forms, tag = English`.
+  - Welsh forms are comma-separated: singular then plural (`tyrbin, tyrbinau`). English is the singular.
+  - The optional tag is the last comma-separated part before `=`. Gender tags are typed once, per word: `eg` (enw gwrywaidd, masculine), `eb` (enw benywaidd, feminine), `egb` (either). The tooltip shows the Welsh tag and derives the English tag from it: `(eg)` … `(m)`, `(eb)` … `(f)`, `(egb)` … `(m/f)`.
+  - Type labels for other words: `adj`, `verb`, `prep`, `adv`, `conj`, `pron` (Welsh aliases `ans`, `be`/`bf`, `ardd`, `adf`, `cys`, `rhag` are accepted). They show as neutral tags.
+  - A phrase gets one entry per word, each on its own line: `{{tyrbinau gwynt|wind turbines|tyrbin, tyrbinau, eg = turbine|gwynt, eg = wind}}`.
+- **Note**: any field with no `=`, or starting `note:`, is a smaller line under the entries, ideal for mutation and grammar hints. Several are allowed, one per line.
+- Gender colour: `(eg)`/`(m)` blue, `(eb)`/`(f)` red, `(egb)`/`(m/f)` purple, always with the letters shown so colour is never the only cue. Colours are tuned for both themes.
 - Escape literal braces with a backslash: `\{{`.
 - Glosses cannot be nested and cannot span lines.
+
+Example tooltip for `{{tyrbinau gwynt|wind turbines|tyrbin, tyrbinau, eg = turbine|gwynt, eg = wind}}`:
+
+```
+wind turbines
+tyrbin, tyrbinau (eg) – turbine (m)
+gwynt (eg) – wind (m)
+```
 
 **Why inline rather than a shared glossary:** Welsh mutations change word shapes (*bara → fara → mara*), so only the author knows which form means what in context. Inline markup guarantees accuracy. The cost is repetition, which is mitigated by build-time reporting (section 6) and the planned word bank (section 11).
 
@@ -148,10 +163,10 @@ audio: audio.mp3
 dialect: south
 ---
 
-Bore dydd Sadwrn, es i i'r {{farchnad|market|soft mutation of marchnad after i'r}} yng Nghaerdydd.
+Bore dydd Sadwrn, es i i'r {{farchnad|market|marchnad, marchnadoedd, eb = market|note: soft mutation of marchnad after i'r}} yng Nghaerdydd.
 Roedd hi'n brysur iawn.
 
-Prynais {{fara|bread|soft mutation of bara}} ffres a {{chaws|cheese|aspirate mutation of caws after a}} lleol.
+Prynais {{fara|bread|bara, eg = bread|note: soft mutation of bara}} ffres a {{chaws|cheese|caws, cawsiau, eg = cheese|note: aspirate mutation of caws after a}} lleol.
 ```
 
 `article.en.md`
@@ -175,7 +190,7 @@ I bought fresh bread and local cheese.
 2. **Parse and validate** (section 6).
 3. **Render** each article to `dist/articles/<slug>/index.html` from `article.template.html`:
    - Welsh text wrapped as `<p lang="cy"><span class="seg" data-i="0">…</span> …</p>`
-   - Glosses rendered as `<span class="gloss" tabindex="0" data-tip="…" data-note="…">` (escaped HTML, no raw injection)
+   - Glosses rendered as `<span class="gloss" tabindex="0" data-tip="…" data-entries="[json]" data-note="…">` (escaped HTML, no raw injection)
    - English lines embedded as `<span class="seg-en" lang="en" hidden>` under each segment
    - Timings embedded as `<script type="application/json" id="timings">`
 4. **Write `dist/data/index.json`**: for each article: slug, title, title_en, level, topics, date, summary, duration (if readable), has-sync, has-english, and a diacritic-folded plain-text blob for search.
@@ -199,7 +214,7 @@ Sorting: newest `date` first, ties broken by title.
 **Warnings (printed in the Action log):**
 - Segment longer than ~250 characters (probably a hard-wrapped paragraph or merged sentences)
 - No glosses in the article
-- The same surface form glossed with different translations across articles (a consistency check)
+- The same surface form glossed with different translations across articles, or the same headword tagged with different genders or types (consistency checks)
 - Audio over 10 MB
 
 ---

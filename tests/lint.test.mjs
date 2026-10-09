@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-const { analyse } = createRequire(import.meta.url)('../tools/lint-core.js');
+const { analyse, parseInline, parseEntry } = createRequire(import.meta.url)('../tools/lint-core.js');
 
 const FM = '---\ntitle: T\nlevel: sylfaen\ndate: 2026-01-01\nsummary: S\n---\n\n';
 const run = (cy, en) => analyse({ md: FM + cy, en });
@@ -134,4 +134,57 @@ test('CRLF and BOM are notes, and do not shift line numbers', () => {
   const r = analyse({ md: `﻿${FM.replace(/\n/g, '\r\n')}Un.\r\nDwy  fawr.\r\n` });
   assert.ok(r.issues.some((i) => i.rule === 'crlf' && i.severity === 'info'));
   assert.ok(has(r, 'double-space', 9));
+});
+
+const gloss = (src) => {
+  const problems = [];
+  const part = parseInline(src, problems).find((p) => p.surface !== undefined);
+  return { part, problems };
+};
+
+test('gloss entries: one field per word, gender tag typed once per word', () => {
+  const { part, problems } = gloss('{{tyrbinau gwynt|wind turbines|tyrbin, tyrbinau, eg = turbine|gwynt, eg = wind}}');
+  assert.deepEqual(problems, []);
+  assert.equal(part.tip, 'wind turbines');
+  assert.deepEqual(part.entries, [
+    { cy: ['tyrbin', 'tyrbinau'], tag: 'eg', en: 'turbine' },
+    { cy: ['gwynt'], tag: 'eg', en: 'wind' },
+  ]);
+});
+
+test('entry tags: genders, type labels and Welsh aliases', () => {
+  assert.equal(parseEntry('marchnad, marchnadoedd, eb = market').entry.tag, 'eb');
+  assert.equal(parseEntry('cath, egb = cat').entry.tag, 'egb');
+  assert.equal(parseEntry('glân, ans = clean').entry.tag, 'adj');
+  assert.equal(parseEntry('cerdded, be = to walk').entry.tag, 'verb');
+  assert.equal(parseEntry('ar, ardd = on').entry.tag, 'prep');
+});
+
+test('a plural that merely looks like a tag is kept as a form unless it is a known tag', () => {
+  assert.deepEqual(parseEntry('tad, tadau = father').entry, { cy: ['tad', 'tadau'], tag: null, en: 'father' });
+});
+
+test('entries can be mixed with notes; plain and "note:" fields are notes', () => {
+  const { part } = gloss("{{farchnad|market|marchnad, marchnadoedd, eb = market|note: soft mutation after i'r|second note}}");
+  assert.equal(part.entries.length, 1);
+  assert.equal(part.note, "soft mutation after i'r\nsecond note");
+});
+
+test('old-style glosses (plain third field) are still notes', () => {
+  const { part, problems } = gloss('{{nheulu|family|nasal mutation of teulu after fy}}');
+  assert.deepEqual(problems, []);
+  assert.equal(part.note, 'nasal mutation of teulu after fy');
+  assert.deepEqual(part.entries, []);
+});
+
+test('malformed entries are errors with the gloss named', () => {
+  assert.match(gloss('{{a|b|eg = thing}}').problems[0], /no Welsh word/);
+  assert.match(gloss('{{a|b|gair, eg = }}').problems[0], /nothing after the =/);
+  assert.match(gloss('{{a|b|note: }}').problems[0], /empty note/);
+});
+
+test('typing (m)/(f) by hand in an entry is flagged; the tag is added automatically', () => {
+  const r = run('Mae {{gwynt|wind|gwynt, eg = wind (m)}} yma.\n');
+  assert.ok(r.issues.some((i) => i.rule === 'gloss-entry' && /remove the typed/.test(i.message)));
+  assert.deepEqual(run('Mae {{gwynt|wind|gwynt, eg = wind}} yma.\n').issues, []);
 });

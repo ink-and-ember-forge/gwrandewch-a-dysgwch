@@ -89,7 +89,8 @@ function mp3Duration(buf) {
 const renderInline = (parts) => parts.map((p) => {
   if (p.text !== undefined) return esc(p.text);
   const note = p.note ? ` data-note="${esc(p.note)}"` : '';
-  return `<span class="gloss" tabindex="0" data-tip="${esc(p.tip)}"${note}>${esc(p.surface)}</span>`;
+  const entries = p.entries?.length ? ` data-entries="${esc(JSON.stringify(p.entries))}"` : '';
+  return `<span class="gloss" tabindex="0" data-tip="${esc(p.tip)}"${entries}${note}>${esc(p.surface)}</span>`;
 }).join('');
 
 const plainInline = (parts) => parts.map((p) => (p.text !== undefined ? p.text : p.surface)).join('');
@@ -170,8 +171,9 @@ function loadArticle(slug) {
   if (count === 0) err(at, 'article has no text segments');
   const segments = blocks.filter((b) => b.kind === 'seg');
   for (const s of segments) {
-    if (s.raw.length > MAX_SEGMENT_CHARS) {
-      warn(at, `segment ${s.index + 1} is ${s.raw.length} characters; hard-wrapped paragraph or merged sentences? "${s.raw.slice(0, 50)}…"`);
+    const shown = plainInline(s.parts).length; // visible text, not gloss markup
+    if (shown > MAX_SEGMENT_CHARS) {
+      warn(at, `segment ${s.index + 1} is ${shown} characters; hard-wrapped paragraph or merged sentences? "${s.raw.slice(0, 50)}…"`);
     }
   }
   const glosses = segments.flatMap((s) => s.parts).concat(blocks.filter((b) => b.kind === 'h2').flatMap((b) => b.parts))
@@ -237,6 +239,7 @@ function loadArticle(slug) {
     enLines,
     timings,
     glosses: glosses.map((g) => ({ surface: g.surface, tip: g.tip })),
+    entries: glosses.flatMap((g) => g.entries || []),
     bodyText,
     enText: enLines ? enLines.join(' ') : '',
   };
@@ -315,6 +318,25 @@ function main() {
     if (tips.size > 1) {
       const detail = [...tips].map(([t, slugs]) => `"${t}" (${[...slugs].join(', ')})`).join(' vs ');
       warn('glossary consistency', `"${surface}" is glossed differently: ${detail}`);
+    }
+  }
+
+  // Consistency: the same headword tagged with different genders/types across articles
+  const tagged = new Map(); // folded headword -> Map(tag -> Set(slug))
+  for (const a of articles) {
+    for (const e of a.entries) {
+      if (!e.tag) continue;
+      const key = fold(e.cy[0]);
+      if (!tagged.has(key)) tagged.set(key, new Map());
+      const tags = tagged.get(key);
+      if (!tags.has(e.tag)) tags.set(e.tag, new Set());
+      tags.get(e.tag).add(a.slug);
+    }
+  }
+  for (const [word, tags] of tagged) {
+    if (tags.size > 1) {
+      const detail = [...tags].map(([t, slugs]) => `${t} (${[...slugs].join(', ')})`).join(' vs ');
+      warn('glossary consistency', `"${word}" is tagged differently: ${detail}`);
     }
   }
 

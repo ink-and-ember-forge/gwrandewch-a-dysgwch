@@ -10,5 +10,5 @@ narrator: Placeholder (silent sample audio)
 ---
 
 Helô, Siân dw i.
-Dw i'n byw gyda fy {{nheulu|family|nasal mutation of teulu after fy}} yng Nghaerdydd.
-Mae gen i ddau {{frawd|brothers|soft mutation of brawd after dau}} ac un chwaer.
+Dw i'n byw gyda fy {{nheulu|family|teulu, teuluoedd, eg = family|note: nasal mutation of teulu after fy}} yng Nghaerdydd.
+Mae gen i ddau {{frawd|brothers|brawd, brodyr, eg = brother|note: soft mutation of brawd after dau}} ac un chwaer.
