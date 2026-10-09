@@ -123,6 +123,11 @@ function render() {
   if (seriesCount) parts.push(`${plural(seriesCount, 'series')}${filtering ? ` (${plural(chapterTotal, 'matching chapter')})` : ''}`);
   $('count').textContent = parts.join(' · ');
   $('clear').hidden = !filtering;
+  const active = state.levels.size + state.topics.size + state.series.size + state.types.size;
+  const badge = $('filters-count');
+  badge.hidden = active === 0;
+  badge.textContent = String(active);
+  $('filters-toggle').setAttribute('aria-label', active ? `Filters, ${plural(active, 'filter')} active` : 'Filters');
   for (const chip of document.querySelectorAll('.chip')) {
     const set = state[SET_FOR[chip.dataset.kind]];
     chip.setAttribute('aria-pressed', String(set.has(chip.dataset.value)));
@@ -197,6 +202,17 @@ async function main() {
 
   if (data.articles.length) $('q').hidden = false;
   applyQuery();
+
+  // The filters sit behind a button so they take no room until wanted. They open by themselves
+  // when the page is loaded with filters already applied (a shared link), so you can see why the list is narrowed.
+  const toggle = $('filters-toggle');
+  const panel = $('filters-panel');
+  const setPanel = (open) => { panel.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); };
+  if (document.querySelector('.filter-group:not([hidden])')) {
+    toggle.hidden = false;
+    toggle.addEventListener('click', () => setPanel(panel.hidden));
+    setPanel(state.levels.size + state.topics.size + state.series.size + state.types.size > 0);
+  }
 
   $('q').addEventListener('input', (e) => { state.q = e.target.value; persist(false); render(); });
   $('clear').addEventListener('click', () => {
