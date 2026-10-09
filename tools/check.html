@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Format checker · Gwrandewch a Dysgwch</title>
   <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex, nofollow">
+  <script src="gate-config.js"></script>
+  <script src="gate.js"></script>
   <style>
     :root { --bg:#fbf8f1; --surface:#fff; --ink:#1d2a24; --muted:#56635b; --line:#ddd6c6; --accent:#1f6b45; --accent-ink:#fff; --err:#b3262d; --warn:#8a5a00; --info:#2a5d8f; --errbg:#fbe4e4; --warnbg:#fff1c9; --infobg:#e3eefa; }
     @media (prefers-color-scheme: dark) { :root { --bg:#111915; --surface:#19231e; --ink:#eaf0ea; --muted:#a6b5ab; --line:#2b3a32; --accent:#5fc58d; --accent-ink:#0a1710; --err:#ff8a8f; --warn:#f0c040; --info:#8cc0f5; --errbg:#3a1a1c; --warnbg:#3b3512; --infobg:#18283a; } }
@@ -52,6 +55,7 @@
 </head>
 <body>
 <div class="wrap">
+  <p><a href="index.html">← Authoring dashboard</a></p>
   <h1>Format checker</h1>
   <p class="lead">Paste your Welsh <code>article.md</code> and (optionally) English <code>article.en.md</code>. Checks run as you type, entirely in your browser. Nothing is uploaded and nothing is changed. The same rules run in the terminal with <code>node scripts/lint.mjs</code>.</p>
 

@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Article editor · Gwrandewch a Dysgwch</title>
   <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex, nofollow">
+  <script src="gate-config.js"></script>
+  <script src="gate.js"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f6b45'/%3E%3C/svg%3E">
   <!-- The site's own stylesheet, so the preview is the real thing: ../css on the live site,
        ../site/css when this file is opened from a clone of the repository. -->
@@ -128,6 +131,7 @@
 </head>
 <body class="ed">
   <div class="ed-bar" role="toolbar" aria-label="Editor">
+    <a href="index.html" class="ed-mini" style="text-decoration:none;display:inline-flex;align-items:center" title="Authoring dashboard">← Authoring</a>
     <h1>Article editor</h1>
     <button type="button" class="ed-btn" id="b-new">New</button>
     <label class="ed-btn" for="f-folder" style="display:inline-flex;align-items:center">Open folder…</label>
