@@ -10,8 +10,8 @@ const run = (cy, en) => analyse({ md: FM + cy, en });
 const rules = (r, file) => r.issues.filter((i) => !file || i.file === file).map((i) => i.rule);
 const has = (r, rule, line) => r.issues.some((i) => i.rule === rule && (line === undefined || i.line === line));
 
-test('the shipped sample articles are clean', () => {
-  const dir = new URL('../content/articles/diwrnod-yn-y-farchnad/', import.meta.url);
+test('a well-formed article with glosses, paragraphs and English is clean', () => {
+  const dir = new URL('./fixtures/market/', import.meta.url);
   const r = analyse({
     md: readFileSync(new URL('article.md', dir), 'utf8'),
     en: readFileSync(new URL('article.en.md', dir), 'utf8'),

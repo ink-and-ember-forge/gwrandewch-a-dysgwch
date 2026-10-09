@@ -11,7 +11,8 @@ const E = require('../tools/editor-core.js');
 const L = require('../tools/lint-core.js');
 const R = require('../tools/render-core.js');
 
-const read = (slug, f) => readFileSync(new URL(`../content/articles/${slug}/${f}`, import.meta.url), 'utf8');
+// Fixtures live in tests/fixtures so adding, renaming or deleting real articles can never break the tests.
+const read = (name, f) => readFileSync(new URL(`./fixtures/${name}/${f}`, import.meta.url), 'utf8');
 
 test('slugify: diacritics, apostrophes, punctuation', () => {
   assert.equal(E.slugify('Diwrnod yn y farchnad'), 'diwrnod-yn-y-farchnad');
@@ -21,7 +22,7 @@ test('slugify: diacritics, apostrophes, punctuation', () => {
   assert.ok(E.slugify('a '.repeat(80)).length <= 60);
 });
 
-for (const slug of ['wind-turbines', 'diwrnod-yn-y-farchnad']) {
+for (const slug of ['wind-turbines', 'market']) {
   test(`${slug}: parse then serialize gives back equivalent files`, () => {
     const md = read(slug, 'article.md');
     const en = read(slug, 'article.en.md');
@@ -176,7 +177,7 @@ print(sorted(z.namelist())); print(z.read('my-article/article.md').decode('utf-8
 });
 
 test('the preview pipeline (serialize -> parseBlocks -> renderBody) renders the same as the build does from the source files', () => {
-  for (const slug of ['wind-turbines', 'diwrnod-yn-y-farchnad']) {
+  for (const slug of ['wind-turbines', 'market']) {
     const md = read(slug, 'article.md');
     const en = read(slug, 'article.en.md');
 
