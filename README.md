@@ -20,6 +20,8 @@ There is no manual build step: `.github/workflows/deploy.yml` runs `node scripts
 | `site/` | Home and article templates, CSS, vanilla JS (no dependencies, all URLs relative) |
 | `scripts/build.mjs` | Validate, render, write `data/index.json`, copy assets (Node 20+, no npm deps) |
 | `tools/sync-tool.html` | Tap-along generator for `timings.json` |
+| `tools/check.html`, `scripts/lint.mjs` | Format checker for `article.md` / `article.en.md` (browser and CLI, shared rules in `tools/lint-core.js`) |
+| `tests/` | `node --test tests/*.test.mjs` covers the linter rules |
 | `docs/AUTHORING.md` | How to add an article |
 
 ## Local preview
