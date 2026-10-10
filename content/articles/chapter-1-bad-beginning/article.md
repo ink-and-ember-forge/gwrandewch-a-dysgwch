@@ -1,5 +1,5 @@
 ---
-title: Pennod 1: Decrharu Drwg
+title: Pennod 1: Dechrau Drwg
 title_en: Chapter 1: Bad Beginning
 level: mynediad
 type: story
