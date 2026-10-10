@@ -337,3 +337,50 @@ kbd {
 
 /* article type (news article, short story, song …) */
 .badge-type { background: var(--accent-soft); border-color: transparent; color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------------------ glossary */
+
+/* Tag colours for the page background (the tooltip ones are tuned for the opposite tone). */
+.glossary {
+  --tag-m: #1b5aa6; --tag-f: #b3202b; --tag-b: #6a3a9f; --tag-t: #46544c;
+  margin: 2rem 0 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line);
+}
+@media (prefers-color-scheme: dark) {
+  .glossary { --tag-m: #8fc4ff; --tag-f: #ff9aa5; --tag-b: #d0aaff; --tag-t: #cdd8d1; }
+}
+.glossary h2 { margin: 0 0 .9rem; font: 700 1.4rem/1.2 var(--serif); }
+.gl-en { font: 500 .9rem var(--sans); color: var(--muted); }
+.gl-count {
+  display: inline-block; min-width: 1.5em; padding: 0 .45em; border-radius: 999px; background: var(--accent-soft);
+  color: var(--accent); font: 600 .75rem/1.6 var(--sans); text-align: center; vertical-align: .15em;
+}
+.gl-list { margin: 0; display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
+.gl-item { margin: 0; padding: .6rem .8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; break-inside: avoid; }
+.gl-item dt { font: 700 1.05rem/1.3 var(--serif); }
+.gl-item dd { margin: .1rem 0 0; }
+.gl-tip { font-weight: 600; color: var(--accent); }
+.gl-entries { list-style: none; margin: .35rem 0 0; padding: .3rem 0 0; border-top: 1px dashed var(--line); font-size: .92rem; }
+.gl-entries li + li { margin-top: .1rem; }
+.gl-note { display: block; margin-top: .3rem; color: var(--muted); font-size: .82rem; }
+@media print { .gl-list { grid-template-columns: 1fr 1fr; } }
+
+/* -------------------------------------------------------------- contact */
+
+.page-contact main, .page-contact .article-head .wrap { max-width: 40rem; }
+.page-contact main { padding-bottom: 2rem; }
+.contact-form { display: grid; gap: 1rem; margin: 1.25rem 0; }
+.cf-field { display: grid; gap: .3rem; }
+.cf-field label { font-weight: 600; }
+.cf-opt { font-weight: 400; color: var(--muted); font-size: .9em; }
+.contact-form input[type="text"], .contact-form input[type="email"], .contact-form textarea {
+  width: 100%; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink);
+}
+.contact-form textarea { resize: vertical; min-height: 8rem; }
+.contact-form button { justify-self: start; cursor: pointer; border: 0; }
+.contact-form button:disabled { opacity: .6; cursor: progress; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.cf-about { margin: 0; padding: .4rem .7rem; background: var(--accent-soft); border-radius: 8px; }
+.cf-status { margin: 0; min-height: 1.5em; }
+.cf-status.is-ok { color: var(--accent); font-weight: 600; }
+.cf-status.is-error { color: var(--red); font-weight: 600; }
+.cf-privacy { color: var(--muted); font-size: .9rem; }

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Send a suggestion · @@site_title@@</title>
+  <meta name="description" content="Suggest an article, report a mistake or tell us what would help you learn.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="page-contact">
+  <a class="skip-link" href="#main">Skip to form</a>
+
+  <header class="article-head">
+    <div class="wrap">
+      <a class="back" href="../">← All articles</a>
+      <h1>Send a suggestion</h1>
+      <p class="subtitle">Anfonwch awgrym</p>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <p>Want an article on a particular topic? Spotted a mistake in a translation or a tooltip? Something that would make this easier to use? Tell me below.</p>
+
+    <form id="contact-form" class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+      <input type="hidden" name="access_key" value="@@access_key@@">
+      <input type="hidden" name="subject" value="Suggestion from @@site_title@@">
+      <input type="hidden" name="from_name" value="@@site_title@@ website">
+      <input type="hidden" name="article" id="cf-article" value="">
+      <!-- spam trap: real visitors never see or tick this -->
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+      <p class="cf-about" id="cf-about" hidden></p>
+
+      <div class="cf-field">
+        <label for="cf-message">Your message</label>
+        <textarea id="cf-message" name="message" rows="7" required maxlength="4000"></textarea>
+      </div>
+      <div class="cf-field">
+        <label for="cf-name">Name <span class="cf-opt">(optional)</span></label>
+        <input id="cf-name" name="name" type="text" autocomplete="name" maxlength="100">
+      </div>
+      <div class="cf-field">
+        <label for="cf-email">Email <span class="cf-opt">(optional, only if you would like a reply)</span></label>
+        <input id="cf-email" name="email" type="email" autocomplete="email" maxlength="200">
+      </div>
+
+      <button type="submit" class="start-btn" id="cf-send">Send</button>
+      <p class="cf-status" id="cf-status" role="status" aria-live="polite"></p>
+    </form>
+
+    <p class="cf-privacy">Messages are delivered by <a href="https://web3forms.com" rel="noopener">Web3Forms</a>, a form-to-email service, so what you type here (and your email address, if you give one) passes through them on its way to me. Nothing else about you is collected, and there are no trackers on this site.</p>
+  </main>
+
+  <script type="module" src="../js/contact.js"></script>
+</body>
+</html>
