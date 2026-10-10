@@ -1,5 +1,5 @@
 ---
-title: Ydy tyrbinau gwynt yn ddiogel i adar
+title: Ydy tyrbinau gwynt yn ddiogel i adar?
 title_en: Are wind turbines safe for birds?
 level: sylfaen
 type: news
