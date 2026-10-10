@@ -20,7 +20,7 @@ const {
   LEVELS, TYPES, MAX_SEGMENT_CHARS, SLUG_RE, parseFrontmatter, parseBlocks, isHeading, validateMeta, validateSeriesMeta, checkSeriesSet,
 } = require('../tools/lint-core.js');
 const {
-  esc, cap, chapterLabel, renderInline, plainInline, renderBody, levelBadge, typeBadge, typeLabel,
+  esc, cap, chapterLabel, renderInline, plainInline, renderBody, levelBadge, typeBadge, typeLabel, renderGlossary,
 } = require('../tools/render-core.js');
 const CONTENT = join(ROOT, 'content', 'articles');
 const CONTENT_SERIES = join(ROOT, 'content', 'series');
@@ -31,6 +31,11 @@ const SITE_TITLE = 'Gwrandewch a Dysgwch';
 const SITE_TAGLINE = 'Welsh articles with audio, for learners: listen, read along, tap a word for its meaning.';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+
+// Suggestions form (Web3Forms). The access key is public by design (it only lets a form
+// send mail to its owner), but it lives in an Actions variable rather than the repo.
+// Without it there is no contact page and no links to one.
+const WEB3FORMS_KEY = (process.env.WEB3FORMS_ACCESS_KEY || '').trim();
 
 const GATE_ITERATIONS = require('../tools/gate.js').ITERATIONS;
 const IN_ACTIONS = !!process.env.GITHUB_ACTIONS;
@@ -211,7 +216,7 @@ function loadArticle(slug) {
     blocks,
     enLines,
     timings,
-    glosses: glosses.map((g) => ({ surface: g.surface, tip: g.tip })),
+    glosses: glosses.map((g) => ({ surface: g.surface, tip: g.tip, note: g.note, entries: g.entries })),
     entries: glosses.flatMap((g) => g.entries || []),
     bodyText,
     enText: enLines ? enLines.join(' ') : '',
@@ -277,6 +282,17 @@ const chLabel = (a) => chapterLabel(a.meta.part, a.meta.part_label);
 
 // ------------------------------------------------------------- rendering
 
+/** Site footer for a page `up` levels below the site root ('' or '../../'). Empty if there is no contact page. */
+function footerHtml(up, article) {
+  if (!WEB3FORMS_KEY) return '';
+  const q = article ? `?article=${encodeURIComponent(article)}` : '';
+  return `<footer class="site-footer">
+    <div class="wrap">
+      <p><a href="${up}contact/${q}">Send a suggestion</a></p>
+    </div>
+  </footer>`;
+}
+
 function renderArticle(a, tpl, nav) {
   const m = a.meta;
   const badges = [typeBadge(m.type), levelBadge(m.level)];
@@ -315,6 +331,8 @@ function renderArticle(a, tpl, nav) {
         + '<button type="button" class="toggle" id="mark-read" aria-pressed="false" hidden><span class="toggle-box" aria-hidden="true"></span> Mark as read</button>'
       : '',
     body: renderBody(a.blocks, a.enLines),
+    glossary: renderGlossary(a.glosses),
+    footer: footerHtml('../../', a.slug),
     timings_script: a.timings ? `<script type="application/json" id="timings">${JSON.stringify(a.timings)}</script>` : '',
     prev_link: link(nav.prev, 'nav-prev', g && nav.prev ? `← ${esc(chLabel(nav.prev))}` : '← Older'),
     next_link: link(nav.next, 'nav-next', g && nav.next ? `${esc(chLabel(nav.next))} →` : 'Newer →'),
@@ -351,6 +369,7 @@ function renderSeries(g, tpl) {
     first_href: `../../articles/${first.slug}/`,
     first_label: `Start with ${chLabel(first)}`,
     chapters_html: items,
+    footer: footerHtml('../../'),
   }, 'series.template.html');
 }
 
@@ -410,6 +429,10 @@ function main() {
       const detail = [...tags].map(([t, slugs]) => `${t} (${[...slugs].join(', ')})`).join(' vs ');
       warn('glossary consistency', `"${word}" is tagged differently: ${detail}`);
     }
+  }
+
+  if (WEB3FORMS_KEY && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(WEB3FORMS_KEY)) {
+    warn('WEB3FORMS_ACCESS_KEY', 'does not look like a Web3Forms access key (a UUID); check it was copied whole');
   }
 
   console.log(`Found ${articles.length} article(s)${groups.size ? ` in ${articles.filter((a) => !a.meta.series).length} standalone and ${groups.size} series` : ''}${drafts ? `, ${drafts} draft(s) skipped` : ''}.`);
@@ -536,8 +559,20 @@ function main() {
     site_title: SITE_TITLE,
     tagline: SITE_TAGLINE,
     noscript_list: list,
+    contact_link: WEB3FORMS_KEY ? '<a href="contact/">Send a suggestion</a> ·' : '',
   }, 'index.html');
   writeFileSync(join(DIST, 'index.html'), home);
+
+  // suggestions page
+  if (WEB3FORMS_KEY) {
+    mkdirSync(join(DIST, 'contact'), { recursive: true });
+    writeFileSync(join(DIST, 'contact', 'index.html'), fill(readFileSync(join(SITE, 'contact.template.html'), 'utf8'), {
+      site_title: SITE_TITLE,
+      access_key: WEB3FORMS_KEY,
+    }, 'contact.template.html'));
+  } else if (IN_ACTIONS && process.env.GITHUB_EVENT_NAME !== 'pull_request') {
+    console.warn('Suggestions form: no WEB3FORMS_ACCESS_KEY variable set, so the site has no contact page.');
+  }
 
   console.log(`Built ${articles.length} article(s)${groups.size ? ` and ${groups.size} series page(s)` : ''} into dist/.`);
 }

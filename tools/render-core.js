@@ -149,5 +149,48 @@
     }
   }
 
-  return { esc, cap, chapterLabel, TAGS, renderInline, plainInline, renderBody, levelBadge, typeBadge, typeLabel, entriesOf, fillTooltip };
+  // ------------------------------------------------- glossary (HTML string)
+
+  const foldKey = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  /** One tooltip word line as HTML: "tyrbin, tyrbinau (eg) – turbine (m)". Mirrors entryLine(). */
+  function entryHtml(entry) {
+    const def = TAGS[entry.tag];
+    const tag = (label, d, title) => ` <span class="tag tag-${d.cls}" role="img" aria-label="${esc(title)}" title="${esc(title)}">(${esc(label)})</span>`;
+    return `<span class="tip-cy" lang="cy">${esc(entry.cy.join(', '))}</span>${def ? tag(def.cy, def, def.title) : ''}`
+      + `<span class="tip-sep" aria-hidden="true"> – </span><span class="tip-en" lang="en">${esc(entry.en)}</span>${def && def.en ? tag(def.en, def, def.enTitle) : ''}`;
+  }
+
+  /**
+   * The "Geirfa" section at the foot of an article: every tooltip collected into one
+   * alphabetical list. `glosses` are {surface, tip, note, entries}. The same word glossed
+   * the same way twice appears once (entries and notes merged). '' if there are none.
+   */
+  function renderGlossary(glosses) {
+    const items = new Map();
+    for (const g of glosses) {
+      const key = `${foldKey(g.surface)}|${g.tip.toLowerCase()}`;
+      if (!items.has(key)) items.set(key, { surface: g.surface, tip: g.tip, entries: [], notes: [] });
+      const it = items.get(key);
+      for (const e of g.entries || []) {
+        if (!it.entries.some((x) => JSON.stringify(x) === JSON.stringify(e))) it.entries.push(e);
+      }
+      for (const n of (g.note || '').split('\n')) if (n && !it.notes.includes(n)) it.notes.push(n);
+    }
+    if (!items.size) return '';
+    const sorted = [...items.values()].sort((a, b) => foldKey(a.surface).localeCompare(foldKey(b.surface), 'cy') || a.tip.localeCompare(b.tip));
+    const rows = sorted.map((it) => {
+      const entries = it.entries.length ? `<ul class="gl-entries">${it.entries.map((e) => `<li>${entryHtml(e)}</li>`).join('')}</ul>` : '';
+      const notes = it.notes.map((n) => `<small class="gl-note" lang="en">${esc(n)}</small>`).join('');
+      return `<div class="gl-item"><dt lang="cy">${esc(it.surface)}</dt><dd><span class="gl-tip" lang="en">${esc(it.tip)}</span>${entries}${notes}</dd></div>`;
+    });
+    return `<section class="glossary" aria-labelledby="geirfa-h">
+      <h2 id="geirfa-h"><span lang="cy">Geirfa</span> <span class="gl-en" lang="en">· Glossary</span> <span class="gl-count">${sorted.length}</span></h2>
+      <dl class="gl-list">
+        ${rows.join('\n        ')}
+      </dl>
+    </section>`;
+  }
+
+  return { esc, cap, chapterLabel, TAGS, renderInline, plainInline, renderBody, levelBadge, typeBadge, typeLabel, entriesOf, fillTooltip, entryHtml, renderGlossary };
 }));

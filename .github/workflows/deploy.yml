@@ -32,6 +32,8 @@ jobs:
         env:
           # Optional. Set under Settings > Secrets and variables > Actions to password-protect /tools/.
           AUTHORING_PASSWORD: ${{ secrets.AUTHORING_PASSWORD }}
+          # Optional. Web3Forms access key for the suggestions form (Settings > Secrets and variables > Actions > Variables). Without it the site has no contact page.
+          WEB3FORMS_ACCESS_KEY: ${{ vars.WEB3FORMS_ACCESS_KEY }}
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3

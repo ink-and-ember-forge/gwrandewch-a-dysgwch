@@ -76,6 +76,8 @@ Type describes the *piece* (so a book's chapters can differ: a dialogue, then a 
 
 **One line = one sentence.** Never hard-wrap. A blank line starts a new paragraph. `## Heading` lines are headings and are not timed.
 
+**Glossary.** Every gloss in an article is also collected automatically into a *Geirfa* section at the foot of the article: alphabetical, one card per word, with its entries and notes. Glossing the same word the same way twice lists it once.
+
 **Glosses (tooltips).** `{{surface|translation|entry|entry|…|note: …}}`
 
 - `surface`: the word or phrase exactly as written in the text (no tags in it).
