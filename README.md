@@ -20,6 +20,7 @@ There is no manual build step: `.github/workflows/deploy.yml` runs `node scripts
 | `content/series/<name>.md` | Optional page for a series (a book or course whose chapters are articles linked by `series:` and `part:`) |
 | `site/` | Home and article templates, CSS, vanilla JS (no dependencies, all URLs relative) |
 | `scripts/build.mjs` | Validate, render, write `data/index.json`, copy assets (Node 20+, no npm deps) |
+| `tools/index.html` | **Authoring dashboard** at `<site>/tools/`: links the tools below; optional password via the `AUTHORING_PASSWORD` Actions secret (see `docs/AUTHORING.md`) |
 | `tools/editor.html` | **Article editor**: build an article from Welsh/English sentence rows, with a tooltip builder, live preview, checks and a zip download (`tools/editor-core.js` holds its logic, `tools/render-core.js` the markup shared with the build) |
 | `tools/sync-tool.html` | Tap-along generator for `timings.json` |
 | `tools/check.html`, `scripts/lint.mjs` | Format checker for `article.md` / `article.en.md` (browser and CLI, shared rules in `tools/lint-core.js`) |

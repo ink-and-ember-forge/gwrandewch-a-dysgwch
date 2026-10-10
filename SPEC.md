@@ -68,6 +68,8 @@ content/articles/<slug>/  ──►  scripts/build.mjs  ──►  dist/  ──
 ├── scripts/
 │   └── build.mjs                   # validate + render + index + copy
 ├── tools/
+│   ├── index.html                  # authoring dashboard (links the tools)
+│   ├── gate.js, gate-config.js     # optional password gate (config overwritten at build)
 │   ├── editor.html                 # article editor (standalone): rows, tooltip builder, preview, zip
 │   ├── editor-core.js              # editor logic (UMD, unit tested)
 │   ├── render-core.js              # markup + tooltip rendering shared by build, site and editor
@@ -283,6 +285,9 @@ Sorting: newest `date` first, ties broken by title.
 ---
 
 ## 8. Authoring support
+
+### 8.0 Authoring dashboard and password (`tools/index.html`)
+One page, `/tools/`, links the three tools below. The public site links to it once, from a discreet footer link. All authoring pages are `noindex` and load `tools/gate.js`, a browser-side password gate: the build hashes the `AUTHORING_PASSWORD` Actions secret (PBKDF2-SHA256, random salt) into `dist/tools/gate-config.js`; unlocking is remembered per tab (`sessionStorage`). With no secret the pages are open and the dashboard says so. Deliberately a deterrent for accidental visitors, not security: there is no server to enforce it.
 
 ### 8.1 Article editor (`tools/editor.html`)
 A standalone, no-build page (opens locally or from Pages; no server, nothing uploaded) for creating and editing articles:

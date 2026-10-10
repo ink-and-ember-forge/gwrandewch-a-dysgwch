@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authoring · Gwrandewch a Dysgwch</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f6b45'/%3E%3C/svg%3E">
+  <script src="gate-config.js"></script>
+  <script src="gate.js"></script>
+  <style>
+    :root { --bg:#fbf8f1; --surface:#fff; --ink:#1d2a24; --muted:#56635b; --line:#ddd6c6; --accent:#1f6b45; --warn:#8a5a00; --warnbg:#fff1c9; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#111915; --surface:#19231e; --ink:#eaf0ea; --muted:#a6b5ab; --line:#2b3a32; --accent:#5fc58d; --warn:#f0c040; --warnbg:#3b3512; } }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:1rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    a { color: var(--accent); }
+    .wrap { max-width: 56rem; margin: 0 auto; padding: 1.5rem 16px 3rem; }
+    h1 { font: 700 1.8rem/1.2 Georgia,serif; margin: .25rem 0; }
+    .lead { color: var(--muted); margin-top: 0; }
+    .top { display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.9rem; }
+    .grid { list-style:none; padding:0; margin:1.5rem 0; display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); }
+    .tool { display:block; height:100%; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.2rem; color:inherit; text-decoration:none; }
+    .tool:hover, .tool:focus-visible { border-color:var(--accent); }
+    .tool h2 { margin:0 0 .35rem; font:700 1.2rem/1.3 Georgia,serif; color:var(--accent); }
+    .tool p { margin:0; color:var(--muted); font-size:.95rem; }
+    .tool .when { margin-top:.6rem; font-size:.85rem; }
+    :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+    .notice { background:var(--warnbg); color:var(--warn); border-radius:8px; padding:.6rem .9rem; margin:1rem 0; }
+    .linkbtn { font:inherit; background:none; border:0; padding:0; color:var(--accent); text-decoration:underline; cursor:pointer; }
+    h3 { font-size:1rem; margin:2rem 0 .5rem; }
+    ol.flow { color:var(--muted); padding-left:1.2rem; margin:0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="../">← Back to the site</a>
+    <button type="button" class="linkbtn" id="lock" hidden>Lock</button>
+  </div>
+  <h1>Authoring</h1>
+  <p class="lead">Everything for adding an article, in one place. All tools run in your browser; nothing is uploaded.</p>
+
+  <p class="notice" id="open-notice" hidden>No password is set, so anyone with this address can open the authoring tools. Add an <code>AUTHORING_PASSWORD</code> secret in the repository settings (see <code>docs/AUTHORING.md</code>) and redeploy.</p>
+
+  <ul class="grid">
+    <li><a class="tool" href="editor.html">
+      <h2>Article editor</h2>
+      <p>Build an article sentence by sentence: Welsh and English side by side, tooltip builder, live preview and a zip to download.</p>
+      <p class="when">Start here for a new article.</p>
+    </a></li>
+    <li><a class="tool" href="sync-tool.html">
+      <h2>Sync tool</h2>
+      <p>Tap along to the audio to create <code>timings.json</code> so sentences highlight as it plays.</p>
+      <p class="when">After the text and audio are ready.</p>
+    </a></li>
+    <li><a class="tool" href="check.html">
+      <h2>Format checker</h2>
+      <p>Paste <code>article.md</code> and <code>article.en.md</code> to find formatting problems and line mismatches.</p>
+      <p class="when">For files written by hand or edited outside the editor.</p>
+    </a></li>
+  </ul>
+
+  <h3>Usual order</h3>
+  <ol class="flow">
+    <li>Write or paste the text in the <strong>editor</strong>, add glosses and the English line for each sentence.</li>
+    <li>Time the audio with the <strong>sync tool</strong> and download <code>timings.json</code>.</li>
+    <li>Download the zip from the editor, put the folder in <code>content/articles/</code> and commit. The site rebuilds itself.</li>
+  </ol>
+  <p class="lead" style="margin-top:1.5rem">Full guide: <a href="https://github.com/ink-and-ember-forge/gwrandewch-a-dysgwch/blob/main/docs/AUTHORING.md">docs/AUTHORING.md</a></p>
+</div>
+<script>
+  (function () {
+    var g = window.GadGate || {};
+    var lock = document.getElementById('lock');
+    if (g.locked) { lock.hidden = false; lock.addEventListener('click', g.lock); }
+    else if (/^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname)) {
+      document.getElementById('open-notice').hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>

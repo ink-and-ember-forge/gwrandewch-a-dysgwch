@@ -2,9 +2,25 @@
 
 Add a folder under `content/articles/`, push to `main`, and the site rebuilds itself. You never edit an index or any code.
 
+## The authoring dashboard
+
+Everything lives behind one page: **`<site>/tools/`** (the small *Authoring* link in the site footer, or open `tools/index.html` from your clone). It links the article editor, sync tool and format checker, in the order you usually need them.
+
+### Password
+
+The authoring pages can be locked with a password so learners don't wander in by accident. Set it once:
+
+1. In the repository: **Settings → Secrets and variables → Actions → New repository secret**.
+2. Name `AUTHORING_PASSWORD`, value your password.
+3. Re-run the latest *Build and deploy* (or push anything to `main`).
+
+To change it, edit the secret and redeploy; to remove it, delete the secret and redeploy. Until a secret exists the tools are open, and the dashboard says so on the live site. The dashboard has a **Lock** link, and a browser stays unlocked until its tab is closed.
+
+This is a deterrent, not a vault. A static site has no server to check a password, so the check runs in the browser against a salted hash (the password itself is never published). Someone determined could bypass it, but the tools hold nothing secret: your drafts stay in your own browser, and articles only go live when you commit them. Local copies from your clone are never password protected.
+
 ## The easy way: the article editor
 
-Open **`tools/editor.html`** (at `<site>/tools/editor.html`, or straight from your clone). Nothing is uploaded; it runs in your browser.
+Open **`tools/editor.html`** from the dashboard. Nothing is uploaded; it runs in your browser.
 
 1. **Details:** title, type, level, date, summary, topics. The folder name is generated from the title.
 2. **Sentences:** paste your Welsh (*Paste text…*) and it is split into one row per sentence, then paste the English the same way to fill the English column. Each row is a Welsh/English pair, so the two files cannot get out of step. Add, split (<kbd>Enter</kbd>), merge, move and delete rows; <kbd>¶</kbd> starts a new paragraph and <kbd>H</kbd> makes a `##` heading.

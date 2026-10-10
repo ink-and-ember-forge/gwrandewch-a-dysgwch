@@ -10,6 +10,7 @@ import {
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { pbkdf2Sync, randomBytes } from 'node:crypto';
 
 // GAD_ROOT lets the tests build a throwaway site; normally this is the repository root.
 const ROOT = process.env.GAD_ROOT ? resolve(process.env.GAD_ROOT) : resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -31,6 +32,7 @@ const SITE_TAGLINE = 'Welsh articles with audio, for learners: listen, read alon
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
+const GATE_ITERATIONS = require('../tools/gate.js').ITERATIONS;
 const IN_ACTIONS = !!process.env.GITHUB_ACTIONS;
 const errors = [];
 const warnings = [];
@@ -428,7 +430,19 @@ function main() {
   // static assets (all referenced relatively)
   for (const dir of ['css', 'js']) cpSync(join(SITE, dir), join(DIST, dir), { recursive: true });
   if (existsSync(join(SITE, 'favicon.svg'))) cpSync(join(SITE, 'favicon.svg'), join(DIST, 'favicon.svg'));
-  cpSync(join(ROOT, 'tools'), join(DIST, 'tools'), { recursive: true });
+  cpSync(join(ROOT, 'tools'), join(DIST, 'tools'), { recursive: true, dereference: true });
+  // Authoring password: only a salted hash goes into the site, never the password itself.
+  const password = process.env.AUTHORING_PASSWORD || '';
+  if (password) {
+    const salt = randomBytes(16).toString('hex');
+    const hash = pbkdf2Sync(password, Buffer.from(salt, 'hex'), GATE_ITERATIONS, 32, 'sha256').toString('hex');
+    writeFileSync(join(DIST, 'tools', 'gate-config.js'),
+      `window.GAD_GATE = ${JSON.stringify({ salt, iterations: GATE_ITERATIONS, hash })};\n`);
+    console.log('Authoring tools: password protected.');
+  } else if (IN_ACTIONS && process.env.GITHUB_EVENT_NAME !== 'pull_request') {
+    console.warn('Authoring tools: no AUTHORING_PASSWORD secret set, so they are open to anyone with the link.');
+  }
+
   // the article page loads the shared render code as a classic script next to its other JS
   cpSync(join(ROOT, 'tools', 'render-core.js'), join(DIST, 'js', 'render-core.js'));
 
