@@ -11,7 +11,11 @@
   'use strict';
 
   const META_ORDER = ['title', 'title_en', 'level', 'type', 'topics', 'series', 'part', 'part_label', 'date', 'summary', 'audio', 'narrator', 'dialect', 'source', 'licence', 'draft'];
-  const ABBREVIATIONS = new Set(['mr', 'mrs', 'ms', 'dr', 'st', 'prof', 'rev', 'etc', 'vs', 'cf', 'no']);
+  // A full stop after one of these does not end a sentence (compared lowercase, without the final dot).
+  const ABBREVIATIONS = new Set([
+    'mr', 'mrs', 'ms', 'dr', 'st', 'prof', 'rev', 'etc', 'vs', 'cf', 'no',
+    'ayb', 'gw', 'parch', 'cyf', 'cllr', 'mri', 'tt', 'pen', 'rhif', // Welsh: ac yn y blaen, gweler, Parchedig, Cyfyngedig, ...
+  ]);
 
   const oneLine = (s) => String(s == null ? '' : s).replace(/\s*\n\s*/g, ' ').trim();
 
@@ -167,8 +171,9 @@
     let m;
     while ((m = re.exec(t))) {
       if (m[1] === '.') {
-        const w = (t.slice(last, m.index).match(/(\p{L}+)$/u) || [])[1] || '';
-        if (/^\p{Lu}$/u.test(w) || ABBREVIATIONS.has(w.toLowerCase())) continue; // initials and abbreviations, not short Welsh words like "fi" or "un"
+        const w = (t.slice(last, m.index).match(/(\p{L}+(?:\.\p{L}+)*)$/u) || [])[1] || '';
+        // initials (J.), dotted abbreviations (e.e., h.y.) and listed abbreviations, but not short Welsh words like "fi" or "un"
+        if (/^\p{Lu}$/u.test(w) || /^(?:\p{L}\.)+\p{L}$/u.test(w) || ABBREVIATIONS.has(w.toLowerCase())) continue;
       }
       pieces.push(t.slice(last, m.index + m[1].length).trim());
       last = m.index + m[0].length;
