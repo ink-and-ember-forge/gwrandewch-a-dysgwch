@@ -60,9 +60,6 @@
     .ed-inline { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
     .ed-inline input[type="text"] { flex: 1; min-width: 8rem; }
 
-    .ed-start { border: 2px dashed var(--accent); border-radius: 12px; background: var(--accent-soft); padding: .8rem 1rem; margin: .6rem 0; display: grid; gap: .5rem; }
-    .ed-start[hidden] { display: none; }
-    .ed-start textarea.big { width: 100%; min-height: 9rem; font: 1.05rem/1.5 var(--serif); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: .5rem; }
     #ed-rows { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .6rem; }
     .ed-row { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; background: var(--surface); padding: .45rem .6rem .6rem; }
     .ed-row.has-error { border-left-color: var(--red); }
@@ -210,12 +207,6 @@
       <section class="ed-card" style="margin-top:1rem" aria-labelledby="h-sent">
         <h2 id="h-sent">2 · Sentences</h2>
         <p class="ed-help">One row per sentence, Welsh and English together, so they can never get out of step. Select words in the Welsh (drag or double-click) and press <kbd>G</kbd>, or the “Add tooltip” button, to build a tooltip; click a dotted word to edit it. Use <b>Edit</b> (or <kbd>Enter</kbd> on a sentence) to change the Welsh text itself. <kbd>Enter</kbd> splits a sentence, <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves a row.</p>
-        <div class="ed-start" id="ed-start" hidden>
-          <label for="st-text"><strong>Start here:</strong> paste your Welsh text</label>
-          <textarea class="big" id="st-text" lang="cy" rows="6" spellcheck="false" placeholder="Paste the whole article. It is broken into one row per sentence straight away; blank lines become paragraph breaks and lines starting ## become headings."></textarea>
-          <div class="ed-inline"><button type="button" class="ed-btn primary" id="st-go" disabled>Break into sentences</button><span class="ed-hint" id="st-count" role="status"></span></div>
-        </div>
-        <p class="ed-hint" id="ed-progress" aria-live="polite"></p>
         <ol id="ed-rows"></ol>
         <div class="ed-inline" style="margin-top:.7rem">
           <button type="button" class="ed-btn" id="b-addrow">+ Add sentence</button>
@@ -958,45 +949,6 @@
     changed();
   }
 
-  // ------------------------------------------------- start panel (blank article)
-  // Shown only while no row has Welsh text: paste once and the whole text becomes rows.
-  function applyStart(text) {
-    const parsed = E.splitText(text, 'sentences');
-    const n = parsed.filter((x) => x.kind === 'seg').length;
-    if (!n) return;
-    pushUndo();
-    items = parsed;
-    renderRows();
-    changed();
-    $('st-text').value = '';
-    toast(`Split into ${n} sentence${n === 1 ? '' : 's'}. Check the breaks (Merge ↓, or Enter in the Welsh to split), then add English and tooltips.`);
-    const first = rowEl(0) && rowEl(0).querySelector('.ed-view');
-    if (first) first.focus();
-  }
-  function bindStart() {
-    const ta = $('st-text');
-    const update = () => {
-      const n = E.splitText(ta.value, 'sentences').filter((x) => x.kind === 'seg').length;
-      $('st-go').disabled = !n;
-      $('st-count').textContent = n ? `${n} sentence${n === 1 ? '' : 's'} found.` : '';
-    };
-    ta.addEventListener('input', update);
-    ta.addEventListener('paste', (e) => {
-      const text = (e.clipboardData || window.clipboardData).getData('text');
-      if (!text.trim()) return;
-      e.preventDefault();
-      applyStart(ta.value ? `${ta.value}\n${text}` : text);
-    });
-    $('st-go').addEventListener('click', () => applyStart(ta.value));
-  }
-  function updateStartAndProgress() {
-    const segs = items.filter((x) => x.kind === 'seg' && x.cy.trim());
-    $('ed-start').hidden = items.some((x) => x.cy.trim());
-    const withEn = segs.filter((x) => x.en.trim()).length;
-    const tips = segs.reduce((n, x) => n + E.glossesOf(x.cy).length, 0);
-    $('ed-progress').textContent = segs.length ? `${segs.length} sentence${segs.length === 1 ? '' : 's'} · ${withEn} with English · ${tips} tooltip${tips === 1 ? '' : 's'}` : '';
-  }
-
   // ----------------------------------------------------------- refresh / checks
   function validSlug() { return SLUG_RE.test(slug); }
   function segCount() { return items.filter((x) => x.kind === 'seg' && x.cy.trim()).length; }
@@ -1061,7 +1013,6 @@
     if (counts.error) { pill.className = 'ed-pill error'; pill.textContent = `${counts.error} error${counts.error === 1 ? '' : 's'}`; }
     else if (counts.warn) { pill.className = 'ed-pill warn'; pill.textContent = `${counts.warn} warning${counts.warn === 1 ? '' : 's'}`; }
     else { pill.className = 'ed-pill ok'; pill.textContent = '✓ Ready'; }
-    updateStartAndProgress();
     renderChecks(r, perRow);
     renderPreview();
     renderFiles(r);
@@ -1358,7 +1309,6 @@
     bindRows();
     bindBuilder();
     bindPreview();
-    bindStart();
     syncForm();
     renderRows();
     $('b-new').addEventListener('click', newArticle);

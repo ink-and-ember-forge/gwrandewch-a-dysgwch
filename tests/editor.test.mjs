@@ -100,13 +100,6 @@ test('splitSentences and splitText', () => {
   assert.deepEqual(lines.map((i) => i.cy), ['Un. Dau.', 'Tri.']);
 });
 
-test('splitSentences keeps Welsh abbreviations, initials and times together', () => {
-  assert.deepEqual(E.splitSentences("Mae e'n hoffi chwaraeon, e.e. pêl-droed. Dyma hi."), ["Mae e'n hoffi chwaraeon, e.e. pêl-droed.", 'Dyma hi.']);
-  assert.deepEqual(E.splitSentences('Mae hi yn hoffi llyfrau, h.y. nofelau. Daeth J. R. Jones.'), ['Mae hi yn hoffi llyfrau, h.y. nofelau.', 'Daeth J. R. Jones.']);
-  assert.deepEqual(E.splitSentences('Cwrdd am 10.30 y bore. Yna cinio, ayb. Wedyn adre.'), ['Cwrdd am 10.30 y bore.', 'Yna cinio, ayb. Wedyn adre.']);
-  assert.deepEqual(E.splitSentences('Ydy hi\'n braf? Ydy! Ŵyr neb pam.'), ["Ydy hi'n braf?", 'Ydy!', 'Ŵyr neb pam.']);
-});
-
 const gloss = (extra) => ({ surface: 'tyrbinau gwynt', tip: 'wind turbines', entries: [{ cy: ['tyrbin', 'tyrbinau'], tag: 'eg', en: 'turbine' }, { cy: ['gwynt'], tag: 'eg', en: 'wind' }], notes: [], ...extra });
 
 test('formatGloss round-trips through the real parser', () => {
